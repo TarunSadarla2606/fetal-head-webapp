@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="AI-powered fetal head circumference measurement and gestational age estimation from 2D obstetric ultrasound.">
+  <title>Fetal Head Circumference AI | Clinical Decision Support</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <div class="header-badge">
+        <svg class="badge-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <circle cx="8" cy="8" r="6.25" stroke="currentColor" stroke-width="1.25"/>
+          <path d="M4.5 8a3.5 3.5 0 0 1 7 0" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/>
+          <circle cx="8" cy="8" r="1" fill="currentColor"/>
+        </svg>
+        Clinical Decision Support
+      </div>
+      <h1 class="header-title">Fetal Head Circumference AI</h1>
+      <p class="header-subtitle">Automated biometric analysis from 2D ultrasound</p>
+    </div>
+  </header>
+
+  <main class="main">
+
+    <section class="clinical-context" aria-labelledby="context-heading">
+      <div class="context-inner">
+        <div class="context-icon" aria-hidden="true">
+          <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="10" cy="10" r="8.25" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M10 6v4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            <circle cx="10" cy="14" r="0.75" fill="currentColor"/>
+          </svg>
+        </div>
+        <div class="context-body">
+          <h2 id="context-heading" class="context-heading">About This Tool</h2>
+          <p>This tool performs automated segmentation of the fetal head from 2D obstetric ultrasound images using a deep learning pipeline combining Residual U-Net for robust anatomical boundary delineation and Temporal Attention U-Net for multi-frame consistency.</p>
+          <p>The system outputs clinically relevant biometric measurements including Head Circumference (HC) in millimetres and Gestational Age (GA) in weeks, derived from standard transventricular and transcerebellar imaging planes in accordance with ISUOG guidelines.</p>
+          <p>All predictions are accompanied by GradCAM++ visual explainability maps that highlight the ultrasound regions most influential to the model's segmentation decision, supporting clinical transparency and auditability.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="tool-section" aria-label="Analysis tool">
+      <div class="tool-toolbar">
+        <div class="tool-status">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span>Analysis Tool Active</span>
+        </div>
+        <div class="tool-meta">
+          <span class="meta-tag">HC &amp; GA Estimation</span>
+          <span class="meta-tag">GradCAM++ Explainability</span>
+        </div>
+      </div>
+      <div class="iframe-wrap">
+        <iframe
+          src="https://tarunsadarla2606-fetal-head-clinical-ai.hf.space"
+          title="Fetal Head Circumference AI — Segmentation and Biometric Analysis"
+          allow="camera; microphone; clipboard-write"
+          loading="lazy"
+          frameborder="0"
+        ></iframe>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <div class="footer-col">
+        <p class="footer-label">Developer</p>
+        <p class="footer-value"><strong>Tarun Sadarla</strong></p>
+        <p class="footer-sub">MS Artificial Intelligence &nbsp;&middot;&nbsp; University of North Texas</p>
+      </div>
+      <div class="footer-divider" aria-hidden="true"></div>
+      <div class="footer-col">
+        <p class="footer-label">Model Architecture</p>
+        <p class="footer-value footer-model">Residual U-Net &nbsp;+&nbsp; Temporal Attention U-Net</p>
+      </div>
+    </div>
+    <div class="footer-disclaimer">
+      <p>For research and educational purposes only. Not validated for clinical diagnosis. Always consult a qualified medical professional.</p>
+    </div>
+  </footer>
+
+</body>
+</html>

@@ -1,0 +1,358 @@
+/* ── Reset & Base ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --teal:        #0D7680;
+  --teal-dark:   #095f68;
+  --teal-pale:   #e6f4f5;
+  --teal-border: #b3dde0;
+  --white:       #ffffff;
+  --gray-50:     #f9fafb;
+  --gray-100:    #f3f4f6;
+  --gray-200:    #e5e7eb;
+  --gray-300:    #d1d5db;
+  --gray-400:    #9ca3af;
+  --gray-500:    #6b7280;
+  --gray-600:    #4b5563;
+  --gray-700:    #374151;
+  --gray-900:    #111827;
+
+  --font:        'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --radius:      8px;
+  --radius-lg:   12px;
+  --shadow-xs:   0 1px 2px rgba(0,0,0,.06);
+  --shadow-sm:   0 1px 4px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.05);
+  --shadow-md:   0 4px 14px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.04);
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  font-family: var(--font);
+  background-color: var(--gray-50);
+  color: var(--gray-900);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Header ── */
+.header {
+  background: var(--white);
+  border-bottom: 1px solid var(--gray-200);
+  box-shadow: var(--shadow-sm);
+  padding: 28px 0 32px;
+}
+
+.header-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.header-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--teal);
+  background: var(--teal-pale);
+  border: 1px solid var(--teal-border);
+  border-radius: 20px;
+  padding: 5px 13px;
+  margin-bottom: 18px;
+  line-height: 1;
+}
+
+.badge-icon {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
+
+.header-title {
+  font-size: 34px;
+  font-weight: 700;
+  color: var(--gray-900);
+  letter-spacing: -.6px;
+  line-height: 1.15;
+  margin-bottom: 10px;
+}
+
+.header-subtitle {
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--gray-500);
+  letter-spacing: .01em;
+}
+
+/* ── Main ── */
+.main {
+  flex: 1;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 32px 32px 52px;
+}
+
+/* ── Clinical Context ── */
+.clinical-context {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-left: 4px solid var(--teal);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 22px 26px;
+  margin-bottom: 24px;
+}
+
+.context-inner {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.context-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  color: var(--teal);
+  margin-top: 3px;
+}
+
+.context-body {
+  flex: 1;
+}
+
+.context-heading {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--teal);
+  margin-bottom: 10px;
+}
+
+.context-body p {
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: var(--gray-600);
+}
+
+.context-body p + p {
+  margin-top: 8px;
+}
+
+/* ── Tool Section ── */
+.tool-section {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.tool-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 18px;
+  background: var(--gray-50);
+  border-bottom: 1px solid var(--gray-200);
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.tool-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--gray-600);
+}
+
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: #22c55e;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px rgba(34,197,94,.2);
+  animation: pulse-dot 2.4s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%,100% { box-shadow: 0 0 0 3px rgba(34,197,94,.2); }
+  50%      { box-shadow: 0 0 0 5px rgba(34,197,94,.08); }
+}
+
+.tool-meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.meta-tag {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--teal-dark);
+  background: var(--teal-pale);
+  border: 1px solid var(--teal-border);
+  border-radius: 4px;
+  padding: 2px 8px;
+}
+
+.iframe-wrap {
+  width: 100%;
+  background: var(--gray-100);
+}
+
+.iframe-wrap iframe {
+  display: block;
+  width: 100%;
+  min-height: 700px;
+  border: none;
+  background: var(--white);
+}
+
+/* ── Footer ── */
+.footer {
+  background: var(--white);
+  border-top: 1px solid var(--gray-200);
+  margin-top: auto;
+}
+
+.footer-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px 32px;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+
+.footer-col {
+  flex: 0 0 auto;
+}
+
+.footer-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--gray-400);
+  margin-bottom: 4px;
+}
+
+.footer-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--gray-900);
+}
+
+.footer-sub {
+  font-size: 12px;
+  color: var(--gray-500);
+  margin-top: 2px;
+}
+
+.footer-model {
+  color: var(--teal);
+  font-size: 13px;
+}
+
+.footer-divider {
+  width: 1px;
+  height: 44px;
+  background: var(--gray-200);
+  flex-shrink: 0;
+}
+
+.footer-disclaimer {
+  background: var(--gray-50);
+  border-top: 1px solid var(--gray-100);
+  padding: 10px 32px;
+  text-align: center;
+}
+
+.footer-disclaimer p {
+  font-size: 11px;
+  color: var(--gray-400);
+  letter-spacing: .01em;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .header {
+    padding: 20px 0 24px;
+  }
+
+  .header-inner {
+    padding: 0 16px;
+  }
+
+  .header-title {
+    font-size: 26px;
+  }
+
+  .header-subtitle {
+    font-size: 14px;
+  }
+
+  .main {
+    padding: 20px 16px 36px;
+  }
+
+  .clinical-context {
+    padding: 18px 18px;
+  }
+
+  .context-inner {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .tool-toolbar {
+    padding: 10px 14px;
+  }
+
+  .tool-meta {
+    gap: 6px;
+  }
+
+  .iframe-wrap iframe {
+    min-height: 580px;
+  }
+
+  .footer-inner {
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .footer-divider {
+    width: 100%;
+    height: 1px;
+  }
+
+  .footer-disclaimer {
+    padding: 10px 16px;
+  }
+}
