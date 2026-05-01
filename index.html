@@ -3,91 +3,354 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="AI-powered fetal head circumference measurement and gestational age estimation from 2D obstetric ultrasound.">
-  <title>Fetal Head Circumference AI | Clinical Decision Support</title>
+  <meta name="description" content="Automated fetal head biometry with AI segmentation, HC measurement, and gestational age estimation.">
+  <title>FetalScan AI | Automated Fetal Head Biometry</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+      background: #F8FAFB;
+      color: #1A202C;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Site Header ── */
+    .site-header {
+      background: #0D7680;
+      height: 56px;
+      padding: 0 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .header-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .header-brand-name {
+      color: #fff;
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: -0.2px;
+    }
+    .header-meta {
+      color: rgba(255,255,255,0.82);
+      font-size: 13px;
+      font-weight: 400;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      background: #F8FAFB;
+      padding: 40px 20px;
+      display: flex;
+      justify-content: center;
+      border-bottom: 1px solid #E2E8F0;
+    }
+    .hero-inner {
+      max-width: 900px;
+      width: 100%;
+      text-align: center;
+    }
+    .hero-headline {
+      font-size: 32px;
+      font-weight: 600;
+      color: #0D7680;
+      letter-spacing: -0.5px;
+      line-height: 1.2;
+      margin-bottom: 10px;
+    }
+    .hero-subtitle {
+      font-size: 16px;
+      font-weight: 400;
+      color: #4A5568;
+      margin-bottom: 20px;
+    }
+    .hero-badges {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .badge {
+      background: #E6F4F5;
+      color: #0D7680;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 6px 14px;
+      border-radius: 9999px;
+    }
+
+    /* ── Main ── */
+    .main {
+      flex: 1;
+      width: 100%;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 32px 32px 0;
+    }
+
+    /* ── Iframe Area ── */
+    .iframe-outer {
+      position: relative;
+    }
+
+    /* Loading overlay sits on top of the iframe */
+    .loading-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      background: #F8FAFB;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      border-top: 2px solid #0D7680;
+      border-radius: 0 0 8px 8px;
+    }
+    .loading-title {
+      font-size: 16px;
+      font-weight: 500;
+      color: #0D7680;
+    }
+    .loading-sub {
+      font-size: 13px;
+      color: #718096;
+      text-align: center;
+      max-width: 320px;
+      line-height: 1.55;
+    }
+    .progress-track {
+      width: 240px;
+      height: 3px;
+      background: #C9E8EA;
+      border-radius: 9999px;
+      overflow: hidden;
+      margin-top: 4px;
+      position: relative;
+    }
+    .progress-fill {
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      width: 40%;
+      background: #0D7680;
+      border-radius: 9999px;
+      animation: bar-slide 1.8s ease-in-out infinite;
+    }
+    @keyframes bar-slide {
+      0%   { transform: translateX(-100%); }
+      100% { transform: translateX(250%); }
+    }
+
+    /* Iframe wrapper — teal top accent only */
+    .iframe-wrapper {
+      border-top: 2px solid #0D7680;
+      border-radius: 0 0 8px 8px;
+      overflow: hidden;
+    }
+    .iframe-wrapper iframe {
+      display: block;
+      width: 100%;
+      height: 750px;
+      border: none;
+    }
+
+    /* ── Info Strip ── */
+    .info-strip {
+      background: #ffffff;
+      border-top: 1px solid #E2E8F0;
+      border-bottom: 1px solid #E2E8F0;
+      padding: 24px 0;
+      margin-top: 32px;
+    }
+    .info-columns {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 32px;
+      display: flex;
+      justify-content: center;
+    }
+    .info-col {
+      flex: 1;
+      text-align: center;
+      padding: 0 24px;
+    }
+    .info-col + .info-col {
+      border-left: 1px solid #E2E8F0;
+    }
+    .info-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: #718096;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 6px;
+    }
+    .info-value {
+      font-size: 15px;
+      font-weight: 500;
+      color: #1A202C;
+    }
+
+    /* ── Footer ── */
+    .site-footer {
+      background: #F8FAFB;
+      border-top: 1px solid #E2E8F0;
+      padding: 20px 32px;
+      text-align: center;
+    }
+    .footer-primary {
+      font-size: 14px;
+      color: #4A5568;
+      margin-bottom: 4px;
+    }
+    .footer-secondary {
+      font-size: 12px;
+      color: #A0AEC0;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      .site-header {
+        padding: 0 16px;
+      }
+      .header-meta {
+        font-size: 11px;
+      }
+      .hero {
+        padding: 24px 16px;
+      }
+      .hero-headline {
+        font-size: 24px;
+      }
+      .main {
+        padding: 20px 16px 0;
+      }
+      .info-columns {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 0 16px;
+        gap: 0;
+      }
+      .info-col {
+        padding: 16px 0;
+      }
+      .info-col + .info-col {
+        border-left: none;
+        border-top: 1px solid #E2E8F0;
+      }
+      .site-footer {
+        padding: 16px;
+      }
+      .iframe-wrapper iframe {
+        height: 600px;
+      }
+    }
+  </style>
 </head>
 <body>
 
-  <header class="header">
-    <div class="header-inner">
-      <div class="header-badge">
-        <svg class="badge-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <circle cx="8" cy="8" r="6.25" stroke="currentColor" stroke-width="1.25"/>
-          <path d="M4.5 8a3.5 3.5 0 0 1 7 0" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/>
-          <circle cx="8" cy="8" r="1" fill="currentColor"/>
-        </svg>
-        Clinical Decision Support
-      </div>
-      <h1 class="header-title">Fetal Head Circumference AI</h1>
-      <p class="header-subtitle">Automated biometric analysis from 2D ultrasound</p>
+  <!-- Site Header -->
+  <header class="site-header">
+    <div class="header-brand">
+      <!-- Ultrasound sine wave icon, 24px -->
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+        <path d="M1 12 C3.5 5, 5.5 5, 8 12 C10.5 19, 12.5 19, 15 12 C17.5 5, 19.5 5, 22 12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="header-brand-name">FetalScan AI</span>
     </div>
+    <div class="header-meta">Clinical Research Tool &nbsp;&middot;&nbsp; UNT Medical AI Lab</div>
   </header>
 
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-inner">
+      <h1 class="hero-headline">Automated Fetal Head Biometry</h1>
+      <p class="hero-subtitle">Segmentation &nbsp;&middot;&nbsp; Head Circumference &nbsp;&middot;&nbsp; Gestational Age Estimation</p>
+      <div class="hero-badges">
+        <span class="badge">HC Measurement</span>
+        <span class="badge">GA Estimation</span>
+        <span class="badge">GradCAM++ Explainability</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main: iframe + loading -->
   <main class="main">
+    <div class="iframe-outer">
 
-    <section class="clinical-context" aria-labelledby="context-heading">
-      <div class="context-inner">
-        <div class="context-icon" aria-hidden="true">
-          <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="10" cy="10" r="8.25" stroke="currentColor" stroke-width="1.5"/>
-            <path d="M10 6v4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-            <circle cx="10" cy="14" r="0.75" fill="currentColor"/>
-          </svg>
-        </div>
-        <div class="context-body">
-          <h2 id="context-heading" class="context-heading">About This Tool</h2>
-          <p>This tool performs automated segmentation of the fetal head from 2D obstetric ultrasound images using a deep learning pipeline combining Residual U-Net for robust anatomical boundary delineation and Temporal Attention U-Net for multi-frame consistency.</p>
-          <p>The system outputs clinically relevant biometric measurements including Head Circumference (HC) in millimetres and Gestational Age (GA) in weeks, derived from standard transventricular and transcerebellar imaging planes in accordance with ISUOG guidelines.</p>
-          <p>All predictions are accompanied by GradCAM++ visual explainability maps that highlight the ultrasound regions most influential to the model's segmentation decision, supporting clinical transparency and auditability.</p>
+      <!-- Loading overlay: hidden once iframe fires load -->
+      <div id="loadingOverlay" class="loading-overlay">
+        <!-- Sine wave icon, 48px -->
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+          <path d="M2 24 C7 10, 11 10, 16 24 C21 38, 25 38, 30 24 C35 10, 39 10, 44 24" stroke="#0D7680" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <p class="loading-title">Initializing AI models...</p>
+        <p class="loading-sub">First load may take 30&ndash;60 seconds as models wake from sleep.</p>
+        <div class="progress-track">
+          <div class="progress-fill"></div>
         </div>
       </div>
-    </section>
 
-    <section class="tool-section" aria-label="Analysis tool">
-      <div class="tool-toolbar">
-        <div class="tool-status">
-          <span class="status-dot" aria-hidden="true"></span>
-          <span>Analysis Tool Active</span>
-        </div>
-        <div class="tool-meta">
-          <span class="meta-tag">HC &amp; GA Estimation</span>
-          <span class="meta-tag">GradCAM++ Explainability</span>
-        </div>
-      </div>
-      <div class="iframe-wrap">
+      <!-- Iframe wrapper -->
+      <div class="iframe-wrapper">
         <iframe
+          id="toolFrame"
           src="https://tarunsadarla2606-fetal-head-clinical-ai.hf.space"
-          title="Fetal Head Circumference AI — Segmentation and Biometric Analysis"
+          title="FetalScan AI &mdash; Automated Fetal Head Biometry"
           allow="camera; microphone; clipboard-write"
           loading="lazy"
-          frameborder="0"
         ></iframe>
       </div>
-    </section>
 
+    </div>
   </main>
 
-  <footer class="footer">
-    <div class="footer-inner">
-      <div class="footer-col">
-        <p class="footer-label">Developer</p>
-        <p class="footer-value"><strong>Tarun Sadarla</strong></p>
-        <p class="footer-sub">MS Artificial Intelligence &nbsp;&middot;&nbsp; University of North Texas</p>
+  <!-- Info strip -->
+  <div class="info-strip" role="complementary" aria-label="Technical specifications">
+    <div class="info-columns">
+      <div class="info-col">
+        <p class="info-label">Model Architecture</p>
+        <p class="info-value">Residual U-Net + TAU-Net</p>
       </div>
-      <div class="footer-divider" aria-hidden="true"></div>
-      <div class="footer-col">
-        <p class="footer-label">Model Architecture</p>
-        <p class="footer-value footer-model">Residual U-Net &nbsp;+&nbsp; Temporal Attention U-Net</p>
+      <div class="info-col">
+        <p class="info-label">Output Metrics</p>
+        <p class="info-value">HC (mm) &nbsp;&middot;&nbsp; GA (weeks)</p>
+      </div>
+      <div class="info-col">
+        <p class="info-label">Explainability</p>
+        <p class="info-value">GradCAM++ Attention Maps</p>
       </div>
     </div>
-    <div class="footer-disclaimer">
-      <p>For research and educational purposes only. Not validated for clinical diagnosis. Always consult a qualified medical professional.</p>
-    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <p class="footer-primary">Tarun Sadarla &nbsp;&middot;&nbsp; MS Artificial Intelligence &nbsp;&middot;&nbsp; University of North Texas</p>
+    <p class="footer-secondary">For research and educational purposes only. Not validated for clinical diagnosis.</p>
   </footer>
+
+  <script>
+    document.getElementById('toolFrame').addEventListener('load', function () {
+      document.getElementById('loadingOverlay').style.display = 'none';
+    });
+  </script>
 
 </body>
 </html>
