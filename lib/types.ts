@@ -33,6 +33,8 @@ export interface Study {
   imageDataUrl?: string;
   isDemo?: boolean;
   demoImagePath?: string;
+  errorMessage?: string;
+  analyzedAt?: string;
 }
 
 export interface SavedReport {
