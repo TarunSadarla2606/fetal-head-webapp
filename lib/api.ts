@@ -1,6 +1,6 @@
 import type { InferResponse, ModelVariant } from './types';
 
-export const API_BASE = 'https://fetal-head-clinical-ai.hf.space';
+export const API_BASE = 'https://tarunsadarla2606-fetal-head-clinical-ai-api.hf.space';
 
 export async function runInference(params: {
   image: File;
