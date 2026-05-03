@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import WorklistSidebar from './WorklistSidebar';
 import StudyViewer from './StudyViewer';
 import AIFindingsPanel from './AIFindingsPanel';
 import ReportsTab from './ReportsTab';
 import type { Study, SavedReport, ModelVariant } from '@/lib/types';
-import { runInference } from '@/lib/api';
+import { runInference, listDemoSubjects, API_BASE } from '@/lib/api';
 import { INITIAL_STUDIES, DEMO_STUDY_IDS, getDemoFindings, getDemoOverlayImage } from '@/lib/demo-data';
 
 export default function WorkstationView() {
@@ -19,6 +19,38 @@ export default function WorkstationView() {
 
   const selectedStudy = studies.find(s => s.id === selectedId) ?? studies[0]!;
   const isDemo = DEMO_STUDY_IDS.has(selectedStudy.id);
+
+  // On mount: fetch real demo images from HF Space, replacing synthetic SVGs
+  useEffect(() => {
+    async function loadDemoImages() {
+      const files = await listDemoSubjects();
+      if (files.length === 0) return;
+      const demoIds = ['demo-001', 'demo-002', 'demo-003'];
+      for (let i = 0; i < Math.min(files.length, demoIds.length); i++) {
+        const filename = files[i];
+        const demoId = demoIds[i];
+        try {
+          const res = await fetch(`${API_BASE}/demo/${encodeURIComponent(filename)}`);
+          if (!res.ok) continue;
+          const blob = await res.blob();
+          const dataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = e => resolve(e.target!.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+          setStudies(prev =>
+            prev.map(s =>
+              s.id === demoId ? { ...s, imageDataUrl: dataUrl, demoImagePath: filename } : s
+            )
+          );
+        } catch {
+          // keep synthetic SVG fallback
+        }
+      }
+    }
+    loadDemoImages();
+  }, []);
 
   const handleImageLoad = useCallback((studyId: string, imageDataUrl: string) => {
     setStudies(prev =>
@@ -35,6 +67,32 @@ export default function WorkstationView() {
       );
 
       if (DEMO_STUDY_IDS.has(selectedId)) {
+        // Try real inference using the actual HF Space demo image
+        if (selectedStudy.demoImagePath) {
+          try {
+            const res = await fetch(`${API_BASE}/demo/${encodeURIComponent(selectedStudy.demoImagePath)}`);
+            if (res.ok) {
+              const blob = await res.blob();
+              const imageFile = new File([blob], selectedStudy.demoImagePath, { type: blob.type });
+              const findings = await runInference({
+                image: imageFile,
+                pixelSpacingMm: pixelSpacing,
+                threshold,
+                modelVariant: model,
+              });
+              setStudies(prev =>
+                prev.map(s =>
+                  s.id === selectedId ? { ...s, status: 'done', findings } : s
+                )
+              );
+              return;
+            }
+          } catch {
+            // fall through to pre-baked
+          }
+        }
+
+        // Pre-baked fallback (used when HF Space is cold / unavailable)
         await new Promise(resolve => setTimeout(resolve, 1600));
         const findings = getDemoFindings(selectedId);
         const overlayImg = getDemoOverlayImage(selectedId);
@@ -71,7 +129,7 @@ export default function WorkstationView() {
         );
       }
     },
-    [selectedId, pixelSpacing, threshold, model]
+    [selectedId, selectedStudy, pixelSpacing, threshold, model]
   );
 
   const handleSaveReport = useCallback(

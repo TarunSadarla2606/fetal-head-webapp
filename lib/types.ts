@@ -32,6 +32,7 @@ export interface Study {
   findings?: InferResponse;
   imageDataUrl?: string;
   isDemo?: boolean;
+  demoImagePath?: string;
 }
 
 export interface SavedReport {

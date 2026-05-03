@@ -32,3 +32,14 @@ export async function runInference(params: {
 
   return res.json() as Promise<InferResponse>;
 }
+
+export async function listDemoSubjects(): Promise<string[]> {
+  try {
+    const res = await fetch(`${API_BASE}/demo/list`);
+    if (!res.ok) return [];
+    const data = await res.json() as { files: string[] };
+    return data.files;
+  } catch {
+    return [];
+  }
+}
