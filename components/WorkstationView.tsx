@@ -7,7 +7,7 @@ import AIFindingsPanel from './AIFindingsPanel';
 import ReportsTab from './ReportsTab';
 import type { Study, SavedReport, ModelVariant } from '@/lib/types';
 import { runInference, listDemoSubjects, getApiHealth, API_BASE } from '@/lib/api';
-import { INITIAL_STUDIES, DEMO_STUDY_IDS, getDemoFindings, getDemoOverlayImage } from '@/lib/demo-data';
+import { INITIAL_STUDIES, getDemoFindings, getDemoOverlayImage, PLACEHOLDER_SVG_URL } from '@/lib/demo-data';
 
 export default function WorkstationView() {
   const [studies, setStudies] = useState<Study[]>(INITIAL_STUDIES);
@@ -20,7 +20,6 @@ export default function WorkstationView() {
   const [apiModelCount, setApiModelCount] = useState(0);
 
   const selectedStudy = studies.find(s => s.id === selectedId) ?? studies[0]!;
-  const isDemo = DEMO_STUDY_IDS.has(selectedStudy.id);
 
   // Check API health on mount — drives the header status badge
   useEffect(() => {
@@ -31,17 +30,31 @@ export default function WorkstationView() {
     });
   }, []);
 
-  // On mount: fetch real demo images from HF Space, replacing synthetic SVGs
+  // On mount: fetch all demo subjects from the API and create studies dynamically.
+  // Falls back to INITIAL_STUDIES (synthetic SVGs) when the API is offline.
   useEffect(() => {
-    async function loadDemoImages() {
+    async function loadDemoStudies() {
       const files = await listDemoSubjects();
       if (files.length === 0) return;
-      const demoIds = ['demo-001', 'demo-002', 'demo-003'];
-      for (let i = 0; i < Math.min(files.length, demoIds.length); i++) {
-        const filename = files[i];
-        const demoId = demoIds[i];
+
+      const today = new Date();
+      const newStudies: Study[] = files.map((filename, i) => ({
+        id: `demo-${String(i + 1).padStart(3, '0')}`,
+        patientName: `Demo Subject ${i + 1}`,
+        studyDate: new Date(today.getTime() - i * 86400000).toISOString().split('T')[0],
+        status: 'pending' as const,
+        imageDataUrl: PLACEHOLDER_SVG_URL,
+        isDemo: true,
+        demoImagePath: filename,
+      }));
+
+      setStudies(newStudies);
+      setSelectedId(newStudies[0].id);
+
+      // Load actual images asynchronously so the worklist populates progressively
+      for (const study of newStudies) {
         try {
-          const res = await fetch(`${API_BASE}/demo/${encodeURIComponent(filename)}`);
+          const res = await fetch(`${API_BASE}/demo/${encodeURIComponent(study.demoImagePath!)}`);
           if (!res.ok) continue;
           const blob = await res.blob();
           const dataUrl = await new Promise<string>((resolve, reject) => {
@@ -51,16 +64,14 @@ export default function WorkstationView() {
             reader.readAsDataURL(blob);
           });
           setStudies(prev =>
-            prev.map(s =>
-              s.id === demoId ? { ...s, imageDataUrl: dataUrl, demoImagePath: filename } : s
-            )
+            prev.map(s => s.id === study.id ? { ...s, imageDataUrl: dataUrl } : s)
           );
         } catch {
-          // keep synthetic SVG fallback
+          // keep placeholder for this study
         }
       }
     }
-    loadDemoImages();
+    loadDemoStudies();
   }, []);
 
   const handleImageLoad = useCallback((studyId: string, imageDataUrl: string) => {
@@ -77,13 +88,13 @@ export default function WorkstationView() {
         prev.map(s => (s.id === selectedId ? { ...s, status: 'analyzing' } : s))
       );
 
-      if (DEMO_STUDY_IDS.has(selectedId)) {
-        // Try real inference using the actual HF Space demo image
+      if (selectedStudy.isDemo) {
+        // Try real inference via the API
         if (selectedStudy.demoImagePath) {
           try {
-            const res = await fetch(`${API_BASE}/demo/${encodeURIComponent(selectedStudy.demoImagePath)}`);
-            if (res.ok) {
-              const blob = await res.blob();
+            const imgRes = await fetch(`${API_BASE}/demo/${encodeURIComponent(selectedStudy.demoImagePath)}`);
+            if (imgRes.ok) {
+              const blob = await imgRes.blob();
               const imageFile = new File([blob], selectedStudy.demoImagePath, { type: blob.type });
               const findings = await runInference({
                 image: imageFile,
@@ -91,9 +102,15 @@ export default function WorkstationView() {
                 threshold,
                 modelVariant: model,
               });
+              // Show the HC overlay returned by the API (drawn on the real image)
+              const overlayDataUrl = findings.overlay_b64
+                ? `data:image/png;base64,${findings.overlay_b64}`
+                : undefined;
               setStudies(prev =>
                 prev.map(s =>
-                  s.id === selectedId ? { ...s, status: 'done', findings } : s
+                  s.id === selectedId
+                    ? { ...s, status: 'done', findings, ...(overlayDataUrl ? { imageDataUrl: overlayDataUrl } : {}) }
+                    : s
                 )
               );
               return;
@@ -103,21 +120,21 @@ export default function WorkstationView() {
           }
         }
 
-        // Pre-baked fallback (used when HF Space is cold / unavailable)
+        // Pre-baked fallback: keep the real image if it was already loaded;
+        // only swap to synthetic overlay for the original 3 studies when no real image exists.
         await new Promise(resolve => setTimeout(resolve, 1600));
         const findings = getDemoFindings(selectedId);
-        const overlayImg = getDemoOverlayImage(selectedId);
         setStudies(prev =>
-          prev.map(s =>
-            s.id === selectedId
-              ? {
-                  ...s,
-                  status: findings ? 'done' : 'error',
-                  findings,
-                  imageDataUrl: findings ? overlayImg : s.imageDataUrl,
-                }
-              : s
-          )
+          prev.map(s => {
+            if (s.id !== selectedId) return s;
+            const overlayImg = !s.demoImagePath ? getDemoOverlayImage(selectedId) : undefined;
+            return {
+              ...s,
+              status: findings ? 'done' : 'error',
+              ...(findings ? { findings } : {}),
+              ...(overlayImg ? { imageDataUrl: overlayImg } : {}),
+            };
+          })
         );
         return;
       }
@@ -130,8 +147,15 @@ export default function WorkstationView() {
           threshold,
           modelVariant: model,
         });
+        const overlayDataUrl = findings.overlay_b64
+          ? `data:image/png;base64,${findings.overlay_b64}`
+          : undefined;
         setStudies(prev =>
-          prev.map(s => (s.id === selectedId ? { ...s, status: 'done', findings } : s))
+          prev.map(s =>
+            s.id === selectedId
+              ? { ...s, status: 'done', findings, ...(overlayDataUrl ? { imageDataUrl: overlayDataUrl } : {}) }
+              : s
+          )
         );
       } catch (err) {
         console.error(err);
@@ -216,7 +240,7 @@ export default function WorkstationView() {
           onThresholdChange={setThreshold}
           onImageLoad={handleImageLoad}
           onAnalyze={handleAnalyze}
-          isDemo={isDemo}
+          isDemo={selectedStudy.isDemo ?? false}
         />
         <AIFindingsPanel study={selectedStudy} model={model} onSaveReport={handleSaveReport} />
       </div>
