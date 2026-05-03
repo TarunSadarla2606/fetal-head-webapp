@@ -77,7 +77,7 @@ export default function WorkstationView() {
   const handleImageLoad = useCallback((studyId: string, imageDataUrl: string) => {
     setStudies(prev =>
       prev.map(s =>
-        s.id === studyId ? { ...s, imageDataUrl, status: 'pending', findings: undefined } : s
+        s.id === studyId ? { ...s, imageDataUrl, status: 'pending', findings: undefined, errorMessage: undefined } : s
       )
     );
   }, []);
@@ -85,15 +85,19 @@ export default function WorkstationView() {
   const handleAnalyze = useCallback(
     async (file: File | null) => {
       setStudies(prev =>
-        prev.map(s => (s.id === selectedId ? { ...s, status: 'analyzing' } : s))
+        prev.map(s => (s.id === selectedId ? { ...s, status: 'analyzing', errorMessage: undefined } : s))
       );
 
       if (selectedStudy.isDemo) {
+        let lastError: string | undefined;
+
         // Try real inference via the API
         if (selectedStudy.demoImagePath) {
           try {
             const imgRes = await fetch(`${API_BASE}/demo/${encodeURIComponent(selectedStudy.demoImagePath)}`);
-            if (imgRes.ok) {
+            if (!imgRes.ok) {
+              lastError = `Could not fetch demo image (${imgRes.status})`;
+            } else {
               const blob = await imgRes.blob();
               const imageFile = new File([blob], selectedStudy.demoImagePath, { type: blob.type });
               const findings = await runInference({
@@ -102,21 +106,27 @@ export default function WorkstationView() {
                 threshold,
                 modelVariant: model,
               });
-              // Show the HC overlay returned by the API (drawn on the real image)
               const overlayDataUrl = findings.overlay_b64
                 ? `data:image/png;base64,${findings.overlay_b64}`
                 : undefined;
               setStudies(prev =>
                 prev.map(s =>
                   s.id === selectedId
-                    ? { ...s, status: 'done', findings, ...(overlayDataUrl ? { imageDataUrl: overlayDataUrl } : {}) }
+                    ? {
+                        ...s,
+                        status: 'done',
+                        findings,
+                        analyzedAt: new Date().toISOString(),
+                        errorMessage: undefined,
+                        ...(overlayDataUrl ? { imageDataUrl: overlayDataUrl } : {}),
+                      }
                     : s
                 )
               );
               return;
             }
-          } catch {
-            // fall through to pre-baked
+          } catch (err) {
+            lastError = err instanceof Error ? err.message : 'Inference failed';
           }
         }
 
@@ -128,12 +138,17 @@ export default function WorkstationView() {
           prev.map(s => {
             if (s.id !== selectedId) return s;
             const overlayImg = !s.demoImagePath ? getDemoOverlayImage(selectedId) : undefined;
-            return {
-              ...s,
-              status: findings ? 'done' : 'error',
-              ...(findings ? { findings } : {}),
-              ...(overlayImg ? { imageDataUrl: overlayImg } : {}),
-            };
+            if (findings) {
+              return {
+                ...s,
+                status: 'done',
+                findings,
+                analyzedAt: new Date().toISOString(),
+                errorMessage: undefined,
+                ...(overlayImg ? { imageDataUrl: overlayImg } : {}),
+              };
+            }
+            return { ...s, status: 'error', errorMessage: lastError };
           })
         );
         return;
@@ -153,14 +168,22 @@ export default function WorkstationView() {
         setStudies(prev =>
           prev.map(s =>
             s.id === selectedId
-              ? { ...s, status: 'done', findings, ...(overlayDataUrl ? { imageDataUrl: overlayDataUrl } : {}) }
+              ? {
+                  ...s,
+                  status: 'done',
+                  findings,
+                  analyzedAt: new Date().toISOString(),
+                  errorMessage: undefined,
+                  ...(overlayDataUrl ? { imageDataUrl: overlayDataUrl } : {}),
+                }
               : s
           )
         );
       } catch (err) {
+        const message = err instanceof Error ? err.message : 'Inference failed';
         console.error(err);
         setStudies(prev =>
-          prev.map(s => (s.id === selectedId ? { ...s, status: 'error' } : s))
+          prev.map(s => (s.id === selectedId ? { ...s, status: 'error', errorMessage: message } : s))
         );
       }
     },
