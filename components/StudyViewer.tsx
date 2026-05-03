@@ -3,7 +3,7 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import type { Study, ModelVariant } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { Upload, Play, Loader2, CheckCircle2, Info } from 'lucide-react';
+import { Upload, Play, Loader2, CheckCircle2, Info, FlaskConical } from 'lucide-react';
 
 const MODEL_OPTIONS: { value: ModelVariant; label: string }[] = [
   { value: 'phase0',  label: 'Standard · Single Frame' },
@@ -99,6 +99,7 @@ export default function StudyViewer({
 
   const isAnalyzing = study.status === 'analyzing';
   const isDone = study.status === 'done' && study.findings != null;
+  const isSynthetic = study.isSynthetic === true;
   const isTemporal = TEMPORAL_MODELS.has(model);
   const canRun = !isAnalyzing && (isDemo || currentFile != null);
 
@@ -180,12 +181,22 @@ export default function StudyViewer({
           <>
             <canvas ref={canvasRef} className="block max-w-full max-h-full" />
 
-            {isDone && (
+            {isDone && !isSynthetic && (
               <div
                 data-testid="ai-done-badge"
                 className="absolute top-4 left-4 flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/15 border border-emerald-500/40 rounded-full text-emerald-400 text-[10px] font-semibold uppercase tracking-wider backdrop-blur-sm"
               >
                 <CheckCircle2 className="w-3 h-3" /> AI Analysis Complete
+              </div>
+            )}
+
+            {isDone && isSynthetic && (
+              <div
+                data-testid="synthetic-overlay-badge"
+                className="absolute top-4 left-4 flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/20 border border-amber-500/50 rounded-full text-amber-300 text-[10px] font-semibold uppercase tracking-wider backdrop-blur-sm"
+                title="Pre-baked demo result — backend inference unavailable for this model/study"
+              >
+                <FlaskConical className="w-3 h-3" /> Synthetic Demo Result
               </div>
             )}
 
