@@ -77,7 +77,7 @@ export default function WorkstationView() {
   const handleImageLoad = useCallback((studyId: string, imageDataUrl: string) => {
     setStudies(prev =>
       prev.map(s =>
-        s.id === studyId ? { ...s, imageDataUrl, status: 'pending', findings: undefined, errorMessage: undefined } : s
+        s.id === studyId ? { ...s, imageDataUrl, status: 'pending', findings: undefined, errorMessage: undefined, isSynthetic: false } : s
       )
     );
   }, []);
@@ -85,7 +85,7 @@ export default function WorkstationView() {
   const handleAnalyze = useCallback(
     async (file: File | null) => {
       setStudies(prev =>
-        prev.map(s => (s.id === selectedId ? { ...s, status: 'analyzing', errorMessage: undefined } : s))
+        prev.map(s => (s.id === selectedId ? { ...s, status: 'analyzing', errorMessage: undefined, isSynthetic: false } : s))
       );
 
       if (selectedStudy.isDemo) {
@@ -118,6 +118,7 @@ export default function WorkstationView() {
                         findings,
                         analyzedAt: new Date().toISOString(),
                         errorMessage: undefined,
+                        isSynthetic: false,
                         ...(overlayDataUrl ? { imageDataUrl: overlayDataUrl } : {}),
                       }
                     : s
@@ -132,6 +133,7 @@ export default function WorkstationView() {
 
         // Pre-baked fallback: keep the real image if it was already loaded;
         // only swap to synthetic overlay for the original 3 studies when no real image exists.
+        // Mark isSynthetic=true so the UI clearly shows these are fabricated values.
         await new Promise(resolve => setTimeout(resolve, 1600));
         const findings = getDemoFindings(selectedId);
         setStudies(prev =>
@@ -145,10 +147,11 @@ export default function WorkstationView() {
                 findings,
                 analyzedAt: new Date().toISOString(),
                 errorMessage: undefined,
+                isSynthetic: true,
                 ...(overlayImg ? { imageDataUrl: overlayImg } : {}),
               };
             }
-            return { ...s, status: 'error', errorMessage: lastError };
+            return { ...s, status: 'error', errorMessage: lastError, isSynthetic: false };
           })
         );
         return;
@@ -174,6 +177,7 @@ export default function WorkstationView() {
                   findings,
                   analyzedAt: new Date().toISOString(),
                   errorMessage: undefined,
+                  isSynthetic: false,
                   ...(overlayDataUrl ? { imageDataUrl: overlayDataUrl } : {}),
                 }
               : s
