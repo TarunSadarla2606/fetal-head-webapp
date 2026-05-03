@@ -2,7 +2,7 @@
 
 import type { Study, SavedReport, ModelVariant } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { Brain, TrendingUp, AlertTriangle, Save } from 'lucide-react';
+import { Brain, TrendingUp, AlertTriangle, Save, CheckCircle2 } from 'lucide-react';
 
 interface Props {
   study: Study;
@@ -36,6 +36,13 @@ function ReliabilityBar({ value, label, color }: { value: number; label: string;
       </div>
     </div>
   );
+}
+
+function formatTime(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  } catch { return ''; }
 }
 
 export default function AIFindingsPanel({ study, model, onSaveReport }: Props) {
@@ -74,7 +81,30 @@ export default function AIFindingsPanel({ study, model, onSaveReport }: Props) {
         {study.status === 'error' && (
           <div className="flex items-start gap-2 p-3 bg-red-950/40 border border-red-900/60 rounded text-red-400 text-xs">
             <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-            <p>Analysis failed. Check backend connectivity and retry.</p>
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold">Analysis failed</p>
+              <p className="mt-1 text-red-400/80 break-words" data-testid="analysis-error-message">
+                {study.errorMessage ?? 'Check backend connectivity and retry.'}
+              </p>
+              {(model === 'phase2' || model === 'phase4b') && (
+                <p className="mt-2 text-amber-400/80 italic">
+                  Hint: {model} is a temporal (cine-loop) model and expects 16-frame input.
+                  Single-frame demo subjects only work with phase0 and phase4a.
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {f && study.status === 'done' && (
+          <div className="flex items-center gap-2 px-2.5 py-1.5 bg-emerald-500/10 border border-emerald-500/30 rounded text-emerald-400 text-[11px] font-semibold">
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span>AI Analysis Complete</span>
+            {study.analyzedAt && (
+              <span className="ml-auto text-emerald-500/70 font-normal">
+                {formatTime(study.analyzedAt)}
+              </span>
+            )}
           </div>
         )}
 
