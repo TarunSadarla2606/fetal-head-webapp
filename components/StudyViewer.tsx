@@ -6,10 +6,10 @@ import { cn } from '@/lib/utils';
 import { Upload, Play, Loader2 } from 'lucide-react';
 
 const MODEL_OPTIONS: { value: ModelVariant; label: string }[] = [
-  { value: 'phase0', label: 'Phase 0 (GA detection)' },
-  { value: 'phase2', label: 'Phase 2 (Segmentation)' },
-  { value: 'phase4a', label: 'Phase 4a (Refined HC)' },
-  { value: 'phase4b', label: 'Phase 4b (Full pipeline)' },
+  { value: 'phase0',  label: 'Standard · Single Frame' },
+  { value: 'phase2',  label: 'Standard · Cine Loop' },
+  { value: 'phase4a', label: 'Express · Single Frame' },
+  { value: 'phase4b', label: 'Express · Cine Loop' },
 ];
 
 interface Props {
@@ -21,7 +21,8 @@ interface Props {
   threshold: number;
   onThresholdChange: (v: number) => void;
   onImageLoad: (studyId: string, dataUrl: string) => void;
-  onAnalyze: (file: File) => void;
+  onAnalyze: (file: File | null) => void;
+  isDemo: boolean;
 }
 
 export default function StudyViewer({
@@ -34,6 +35,7 @@ export default function StudyViewer({
   onThresholdChange,
   onImageLoad,
   onAnalyze,
+  isDemo,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -94,20 +96,18 @@ export default function StudyViewer({
   );
 
   const isAnalyzing = study.status === 'analyzing';
-  const canRun = currentFile != null && !isAnalyzing;
+  const canRun = !isAnalyzing && (isDemo || currentFile != null);
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-slate-950">
-      <div className="flex flex-wrap items-center gap-2 px-3 py-1.5 bg-slate-900 border-b border-slate-800 shrink-0">
+    <div className="flex-1 flex flex-col overflow-hidden bg-[#0b0f1a]">
+      <div className="flex flex-wrap items-center gap-2 px-3 py-1.5 bg-[#0f1623] border-b border-slate-800/80 shrink-0">
         <select
           value={model}
           onChange={e => onModelChange(e.target.value as ModelVariant)}
           className="text-xs bg-slate-800 border border-slate-700 text-slate-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[#0D7680]"
         >
           {MODEL_OPTIONS.map(o => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
+            <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
 
@@ -139,9 +139,7 @@ export default function StudyViewer({
         </label>
 
         <button
-          onClick={() => {
-            if (currentFile && !isAnalyzing) onAnalyze(currentFile);
-          }}
+          onClick={() => { if (!isAnalyzing) onAnalyze(isDemo ? null : currentFile); }}
           disabled={!canRun}
           className={cn(
             'ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded transition-colors',
@@ -151,13 +149,9 @@ export default function StudyViewer({
           )}
         >
           {isAnalyzing ? (
-            <>
-              <Loader2 className="w-3.5 h-3.5 animate-spin" /> Analyzing…
-            </>
+            <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Analyzing…</>
           ) : (
-            <>
-              <Play className="w-3.5 h-3.5" /> Run AI
-            </>
+            <><Play className="w-3.5 h-3.5" /> Run AI</>
           )}
         </button>
       </div>
@@ -165,21 +159,20 @@ export default function StudyViewer({
       <div
         className="flex-1 overflow-auto flex items-center justify-center p-4 relative"
         onDrop={handleDrop}
-        onDragOver={e => {
-          e.preventDefault();
-          setIsDragging(true);
-        }}
+        onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
         onDragLeave={() => setIsDragging(false)}
       >
         {study.imageDataUrl ? (
           <>
             <canvas ref={canvasRef} className="block max-w-full max-h-full" />
-            <button
-              onClick={() => fileRef.current?.click()}
-              className="absolute bottom-4 right-4 flex items-center gap-1 px-2 py-1.5 text-xs bg-slate-800/80 border border-slate-700 rounded hover:bg-slate-700 transition-colors text-slate-400"
-            >
-              <Upload className="w-3 h-3" /> Replace
-            </button>
+            {!isDemo && (
+              <button
+                onClick={() => fileRef.current?.click()}
+                className="absolute bottom-4 right-4 flex items-center gap-1 px-2 py-1.5 text-xs bg-slate-800/80 border border-slate-700 rounded hover:bg-slate-700 transition-colors text-slate-400"
+              >
+                <Upload className="w-3 h-3" /> Replace
+              </button>
+            )}
           </>
         ) : (
           <button
@@ -206,13 +199,7 @@ export default function StudyViewer({
         )}
       </div>
 
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handleFileChange}
-      />
+      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
     </div>
   );
 }

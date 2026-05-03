@@ -31,6 +31,7 @@ export interface Study {
   status: 'pending' | 'analyzing' | 'done' | 'error';
   findings?: InferResponse;
   imageDataUrl?: string;
+  isDemo?: boolean;
 }
 
 export interface SavedReport {

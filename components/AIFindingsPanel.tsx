@@ -12,7 +12,7 @@ interface Props {
 
 function Metric({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="bg-slate-950 rounded p-3 space-y-0.5">
+    <div className="bg-[#0b0f1a] rounded-lg p-3 space-y-0.5 border border-slate-800/60">
       <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">{label}</p>
       <p className="text-xl font-bold text-slate-100 leading-tight">{value}</p>
       {sub && <p className="text-xs text-slate-500">{sub}</p>}
@@ -20,27 +20,17 @@ function Metric({ label, value, sub }: { label: string; value: string; sub?: str
   );
 }
 
-function ReliabilityBar({
-  value,
-  label,
-  color,
-}: {
-  value: number;
-  label: string;
-  color: string;
-}) {
+function ReliabilityBar({ value, label, color }: { value: number; label: string; color: string }) {
   const pct = Math.round(value * 100);
   return (
     <div className="space-y-1.5">
       <div className="flex justify-between text-xs">
         <span className="text-slate-500">Reliability</span>
-        <span style={{ color }} className="font-semibold">
-          {label} ({pct}%)
-        </span>
+        <span style={{ color }} className="font-semibold">{label} ({pct}%)</span>
       </div>
       <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
         <div
-          className="h-full rounded-full transition-all duration-500"
+          className="h-full rounded-full transition-all duration-700"
           style={{ width: `${pct}%`, backgroundColor: color }}
         />
       </div>
@@ -52,17 +42,15 @@ export default function AIFindingsPanel({ study, model, onSaveReport }: Props) {
   const f = study.findings;
 
   return (
-    <aside className="w-72 shrink-0 bg-slate-900 border-l border-slate-800 flex flex-col overflow-hidden">
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-800">
+    <aside className="w-72 shrink-0 bg-[#0f1623] border-l border-slate-800/80 flex flex-col overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-800/60">
         <Brain className="w-4 h-4 text-[#0D7680]" />
-        <h2 className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
-          AI Findings
-        </h2>
+        <h2 className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">AI Findings</h2>
       </div>
 
       <div className="flex-1 overflow-y-auto p-3 space-y-4">
         <div>
-          <p className="text-xs text-slate-500">Patient</p>
+          <p className="text-xs text-slate-500">Study</p>
           <p className="text-sm font-semibold text-slate-200">{study.patientName}</p>
           <p className="text-xs text-slate-500">{study.studyDate}</p>
         </div>
@@ -71,16 +59,15 @@ export default function AIFindingsPanel({ study, model, onSaveReport }: Props) {
           <div className="flex flex-col items-center gap-2 py-10 text-center text-slate-600">
             <TrendingUp className="w-8 h-8 opacity-30" />
             <p className="text-xs leading-relaxed">
-              Upload an image and press{' '}
-              <span className="text-[#0D7680]">Run AI</span> to see findings.
+              Press <span className="text-[#0D7680] font-medium">Run AI</span> to measure fetal head circumference.
             </p>
           </div>
         )}
 
         {study.status === 'analyzing' && (
           <div className="flex flex-col items-center gap-3 py-10">
-            <div className="w-8 h-8 border-2 border-[#0D7680] border-t-transparent rounded-full animate-spin" />
-            <p className="text-xs text-slate-500">Running inference…</p>
+            <div className="w-9 h-9 border-2 border-[#0D7680] border-t-transparent rounded-full animate-spin" />
+            <p className="text-xs text-slate-400">Running biometry…</p>
           </div>
         )}
 
@@ -106,11 +93,7 @@ export default function AIFindingsPanel({ study, model, onSaveReport }: Props) {
               />
             </div>
 
-            <ReliabilityBar
-              value={f.reliability}
-              label={f.confidence_label}
-              color={f.confidence_color}
-            />
+            <ReliabilityBar value={f.reliability} label={f.confidence_label} color={f.confidence_color} />
 
             {f.ood_flag && (
               <div className="flex items-start gap-2 p-2.5 bg-yellow-950/40 border border-yellow-900/60 rounded text-yellow-400 text-xs">
@@ -119,9 +102,7 @@ export default function AIFindingsPanel({ study, model, onSaveReport }: Props) {
                   <p className="font-semibold">Out-of-distribution image</p>
                   {f.ood_reasons.length > 0 && (
                     <ul className="mt-1 space-y-0.5 list-disc list-inside">
-                      {f.ood_reasons.map((r, i) => (
-                        <li key={i}>{r}</li>
-                      ))}
+                      {f.ood_reasons.map((r, i) => <li key={i}>{r}</li>)}
                     </ul>
                   )}
                 </div>
@@ -150,15 +131,15 @@ export default function AIFindingsPanel({ study, model, onSaveReport }: Props) {
                 }
                 className="w-full flex items-center justify-center gap-2 py-2 text-xs font-semibold bg-[#0D7680] hover:bg-[#0a5f67] text-white rounded transition-colors"
               >
-                <Save className="w-3.5 h-3.5" /> Save Report
+                <Save className="w-3.5 h-3.5" /> Save to Reports
               </button>
             )}
           </>
         )}
       </div>
 
-      <div className="px-3 py-2 border-t border-slate-800 text-[10px] text-yellow-700">
-        ⚠ Research Use Only — not for clinical decisions
+      <div className="px-3 py-2 border-t border-slate-800/60 text-[10px] text-slate-600">
+        For demonstration purposes only
       </div>
     </aside>
   );

@@ -7,12 +7,7 @@ import AIFindingsPanel from './AIFindingsPanel';
 import ReportsTab from './ReportsTab';
 import type { Study, SavedReport, ModelVariant } from '@/lib/types';
 import { runInference } from '@/lib/api';
-
-const INITIAL_STUDIES: Study[] = [
-  { id: 'study-001', patientName: 'Patient A', studyDate: '2026-05-03', status: 'pending' },
-  { id: 'study-002', patientName: 'Patient B', studyDate: '2026-05-02', status: 'pending' },
-  { id: 'study-003', patientName: 'Patient C', studyDate: '2026-05-01', status: 'pending' },
-];
+import { INITIAL_STUDIES, DEMO_STUDY_IDS, getDemoFindings, getDemoOverlayImage } from '@/lib/demo-data';
 
 export default function WorkstationView() {
   const [studies, setStudies] = useState<Study[]>(INITIAL_STUDIES);
@@ -23,6 +18,7 @@ export default function WorkstationView() {
   const [reportsOpen, setReportsOpen] = useState(false);
 
   const selectedStudy = studies.find(s => s.id === selectedId) ?? studies[0]!;
+  const isDemo = DEMO_STUDY_IDS.has(selectedStudy.id);
 
   const handleImageLoad = useCallback((studyId: string, imageDataUrl: string) => {
     setStudies(prev =>
@@ -33,10 +29,31 @@ export default function WorkstationView() {
   }, []);
 
   const handleAnalyze = useCallback(
-    async (file: File) => {
+    async (file: File | null) => {
       setStudies(prev =>
         prev.map(s => (s.id === selectedId ? { ...s, status: 'analyzing' } : s))
       );
+
+      if (DEMO_STUDY_IDS.has(selectedId)) {
+        await new Promise(resolve => setTimeout(resolve, 1600));
+        const findings = getDemoFindings(selectedId);
+        const overlayImg = getDemoOverlayImage(selectedId);
+        setStudies(prev =>
+          prev.map(s =>
+            s.id === selectedId
+              ? {
+                  ...s,
+                  status: findings ? 'done' : 'error',
+                  findings,
+                  imageDataUrl: findings ? overlayImg : s.imageDataUrl,
+                }
+              : s
+          )
+        );
+        return;
+      }
+
+      if (!file) return;
       try {
         const findings = await runInference({
           image: file,
@@ -78,21 +95,26 @@ export default function WorkstationView() {
   );
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-slate-950">
-      <header className="flex items-center justify-between px-4 h-11 bg-slate-900 border-b border-slate-800 shrink-0">
+    <div className="flex flex-col h-screen overflow-hidden bg-[#0b0f1a]">
+      <header className="flex items-center justify-between px-5 h-12 bg-[#0f1623] border-b border-slate-800/80 shrink-0">
         <div className="flex items-center gap-3">
-          <span className="text-[#0D7680] font-bold text-base tracking-tight">FetalScan AI</span>
-          <span className="text-xs text-slate-500 hidden sm:block">Fetal HC Measurement</span>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded bg-[#0D7680] flex items-center justify-center shrink-0">
+              <span className="text-white text-xs font-bold leading-none">F</span>
+            </div>
+            <span className="text-slate-100 font-semibold text-sm tracking-tight">FetalScan AI</span>
+          </div>
+          <span className="hidden sm:block text-xs text-slate-600 border-l border-slate-700/60 pl-3">
+            Fetal Head Circumference · Clinical Biometry
+          </span>
         </div>
-        <span className="ruo-badge">⚠ Research Use Only</span>
+        <span className="px-2 py-0.5 text-[10px] font-semibold bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded uppercase tracking-wider">
+          Demo
+        </span>
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        <WorklistSidebar
-          studies={studies}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
-        />
+        <WorklistSidebar studies={studies} selectedId={selectedId} onSelect={setSelectedId} />
         <StudyViewer
           study={selectedStudy}
           model={model}
@@ -103,12 +125,9 @@ export default function WorkstationView() {
           onThresholdChange={setThreshold}
           onImageLoad={handleImageLoad}
           onAnalyze={handleAnalyze}
+          isDemo={isDemo}
         />
-        <AIFindingsPanel
-          study={selectedStudy}
-          model={model}
-          onSaveReport={handleSaveReport}
-        />
+        <AIFindingsPanel study={selectedStudy} model={model} onSaveReport={handleSaveReport} />
       </div>
 
       <ReportsTab isOpen={reportsOpen} onToggle={() => setReportsOpen(o => !o)} />
