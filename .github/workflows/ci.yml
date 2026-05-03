@@ -17,7 +17,7 @@ jobs:
           node-version: "20"
       - name: Validate vercel.json
         run: node -e "const c=JSON.parse(require('fs').readFileSync('vercel.json','utf8')); if(!c.version) throw new Error('missing version'); console.log('vercel.json OK');"
-      - name: Run HTML/JS validation tests
+      - name: Run validation tests
         run: node scripts/validate.mjs
 
   nextjs:
@@ -29,8 +29,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: npm
-      - run: npm ci
+      - run: npm install
       - run: npm run build
       - run: npm test
       - name: Playwright E2E
