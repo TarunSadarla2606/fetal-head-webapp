@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "claude/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    name: Validate static assets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Validate vercel.json
+        run: node -e "const c=JSON.parse(require('fs').readFileSync('vercel.json','utf8')); if(!c.version) throw new Error('missing version'); console.log('vercel.json OK');"
+      - name: Run validation tests
+        run: node scripts/validate.mjs
+
+  nextjs:
+    name: Next.js build + test
+    runs-on: ubuntu-latest
+    if: ${{ hashFiles('next.config.*') != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm install
+      - run: npm run build
+      - run: npm test
+      - name: Playwright E2E
+        if: ${{ hashFiles('playwright.config.*') != '' }}
+        run: npx playwright test

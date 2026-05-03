@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand: #0D7680;
+  --brand-dark: #0a5f67;
+}
+
+/* Research Use Only — displayed in header and findings panel */
+.ruo-badge {
+  color: #d97706;
+  font-weight: 600;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
