@@ -71,6 +71,17 @@ export interface SavedReport {
   reliability: number;
   confidenceLabel: string;
   model: ModelVariant;
+  // Extended clinical fields
+  referringPhysician?: string;
+  patientId?: string;
+  patientDob?: string;
+  lmp?: string;
+  orderingFacility?: string;
+  sonographerName?: string;
+  clinicalIndication?: string;
+  usApproach?: 'transabdominal' | 'transvaginal';
+  imageQuality?: 'optimal' | 'suboptimal' | 'limited';
+  reportMode?: 'template' | 'llm';
 }
 
 // ─── Batch 6: Reports API ─────────────────────────────────────────────────────
@@ -94,12 +105,29 @@ export interface ApiReport {
   narrative_p1: string | null;
   narrative_p2: string | null;
   narrative_p3: string | null;
+  narrative_impression: string | null;
   used_llm: boolean;
   is_signed: boolean;
   signed_by: string | null;
   signed_at: string | null;
   signoff_note: string | null;
   created_at: string;
+  // Extended clinical fields
+  referring_physician: string | null;
+  patient_id: string | null;
+  patient_dob: string | null;
+  lmp: string | null;
+  ordering_facility: string | null;
+  sonographer_name: string | null;
+  clinical_indication: string | null;
+  us_approach: string | null;
+  image_quality: string | null;
+  pixel_spacing_dicom_derived: boolean;
+  report_mode: 'template' | 'llm';
+  accession_number: string | null;
+  original_image_b64: string | null;
+  overlay_image_b64: string | null;
+  gradcam_image_b64: string | null;
 }
 
 export interface ApiAuditEntry {
@@ -119,6 +147,7 @@ export interface CreateReportPayload {
   study_date: string;
   model: ModelVariant;
   pixel_spacing_mm?: number;
+  pixel_spacing_dicom_derived?: boolean;
   // Override / supply fields when no finding_id (synthetic mode)
   hc_mm?: number;
   ga_str?: string;
@@ -127,6 +156,17 @@ export interface CreateReportPayload {
   reliability?: number;
   confidence_label?: string;
   elapsed_ms?: number;
+  // ACR/AIUM/ESR-compliant clinical fields
+  referring_physician?: string;
+  patient_id?: string;
+  patient_dob?: string;
+  lmp?: string;
+  ordering_facility?: string;
+  sonographer_name?: string;
+  clinical_indication?: string;
+  us_approach?: 'transabdominal' | 'transvaginal';
+  image_quality?: 'optimal' | 'suboptimal' | 'limited';
+  report_mode?: 'template' | 'llm';
 }
 
 export interface SignReportPayload {

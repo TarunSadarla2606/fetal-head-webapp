@@ -160,7 +160,9 @@ export default function StudyViewer({
         )}
 
         <label className="flex items-center gap-1 text-xs text-slate-500">
-          px spacing
+          <span title="HC18 dataset range: 0.052–0.326 mm/pixel. Incorrect spacing produces wrong HC measurement.">
+            px spacing
+          </span>
           <input
             type="number"
             value={pixelSpacing}
@@ -172,6 +174,12 @@ export default function StudyViewer({
           />
           mm/px
         </label>
+        <span
+          className="text-[9px] text-amber-400/80 flex items-center gap-0.5"
+          title="Pixel spacing not auto-detected from DICOM metadata. Verify value against your ultrasound system. Incorrect spacing produces wrong HC measurement."
+        >
+          <Info className="w-2.5 h-2.5" /> estimated — verify
+        </span>
 
         <label className="flex items-center gap-1 text-xs text-slate-500">
           threshold

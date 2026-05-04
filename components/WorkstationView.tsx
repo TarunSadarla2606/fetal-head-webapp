@@ -309,12 +309,23 @@ export default function WorkstationView() {
         study_date: report.studyDate,
         model: report.model,
         pixel_spacing_mm: pixelSpacing,
+        pixel_spacing_dicom_derived: false,
         hc_mm: report.hcMm,
         ga_str: report.gaStr,
         ga_weeks: report.gaWeeks,
         trimester: report.trimester,
         reliability: report.reliability,
         confidence_label: report.confidenceLabel,
+        referring_physician: report.referringPhysician,
+        patient_id: report.patientId,
+        patient_dob: report.patientDob,
+        lmp: report.lmp,
+        ordering_facility: report.orderingFacility,
+        sonographer_name: report.sonographerName,
+        clinical_indication: report.clinicalIndication,
+        us_approach: report.usApproach,
+        image_quality: report.imageQuality,
+        report_mode: report.reportMode ?? 'template',
       };
       try {
         const created = await createReport(selectedStudy.id, payload);
