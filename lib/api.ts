@@ -1,6 +1,23 @@
 import type { InferResponse, ModelVariant } from './types';
 
-export const API_BASE = 'https://fetal-head-clinical-ai.hf.space';
+export const API_BASE = 'https://tarunsadarla2606-fetal-head-clinical-ai-api.hf.space';
+
+export interface HealthResponse {
+  status: string;
+  version: string;
+  models_available: string[];
+  device: string;
+}
+
+export async function getApiHealth(): Promise<HealthResponse | null> {
+  try {
+    const res = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) return null;
+    return res.json() as Promise<HealthResponse>;
+  } catch {
+    return null;
+  }
+}
 
 export async function runInference(params: {
   image: File;

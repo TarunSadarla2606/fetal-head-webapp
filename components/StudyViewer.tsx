@@ -3,7 +3,7 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import type { Study, ModelVariant } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { Upload, Play, Loader2 } from 'lucide-react';
+import { Upload, Play, Loader2, CheckCircle2, Info, FlaskConical } from 'lucide-react';
 
 const MODEL_OPTIONS: { value: ModelVariant; label: string }[] = [
   { value: 'phase0',  label: 'Standard · Single Frame' },
@@ -11,6 +11,8 @@ const MODEL_OPTIONS: { value: ModelVariant; label: string }[] = [
   { value: 'phase4a', label: 'Express · Single Frame' },
   { value: 'phase4b', label: 'Express · Cine Loop' },
 ];
+
+const TEMPORAL_MODELS = new Set<ModelVariant>(['phase2', 'phase4b']);
 
 interface Props {
   study: Study;
@@ -96,6 +98,9 @@ export default function StudyViewer({
   );
 
   const isAnalyzing = study.status === 'analyzing';
+  const isDone = study.status === 'done' && study.findings != null;
+  const isSynthetic = study.isSynthetic === true;
+  const isTemporal = TEMPORAL_MODELS.has(model);
   const canRun = !isAnalyzing && (isDemo || currentFile != null);
 
   return (
@@ -110,6 +115,16 @@ export default function StudyViewer({
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
+
+        {isTemporal && (
+          <span
+            data-testid="temporal-model-hint"
+            className="flex items-center gap-1 text-[10px] text-amber-400/90 italic"
+            title="Temporal models expect 16-frame cine loops; current demo subjects are single frames."
+          >
+            <Info className="w-3 h-3" /> cine input required
+          </span>
+        )}
 
         <label className="flex items-center gap-1 text-xs text-slate-500">
           px spacing
@@ -165,6 +180,26 @@ export default function StudyViewer({
         {study.imageDataUrl ? (
           <>
             <canvas ref={canvasRef} className="block max-w-full max-h-full" />
+
+            {isDone && !isSynthetic && (
+              <div
+                data-testid="ai-done-badge"
+                className="absolute top-4 left-4 flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/15 border border-emerald-500/40 rounded-full text-emerald-400 text-[10px] font-semibold uppercase tracking-wider backdrop-blur-sm"
+              >
+                <CheckCircle2 className="w-3 h-3" /> AI Analysis Complete
+              </div>
+            )}
+
+            {isDone && isSynthetic && (
+              <div
+                data-testid="synthetic-overlay-badge"
+                className="absolute top-4 left-4 flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/20 border border-amber-500/50 rounded-full text-amber-300 text-[10px] font-semibold uppercase tracking-wider backdrop-blur-sm"
+                title="Pre-baked demo result — backend inference unavailable for this model/study"
+              >
+                <FlaskConical className="w-3 h-3" /> Synthetic Demo Result
+              </div>
+            )}
+
             {!isDemo && (
               <button
                 onClick={() => fileRef.current?.click()}

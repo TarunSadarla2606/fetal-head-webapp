@@ -33,6 +33,9 @@ export interface Study {
   imageDataUrl?: string;
   isDemo?: boolean;
   demoImagePath?: string;
+  errorMessage?: string;
+  analyzedAt?: string;
+  isSynthetic?: boolean;
 }
 
 export interface SavedReport {

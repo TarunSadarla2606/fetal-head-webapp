@@ -2,7 +2,7 @@
 
 import type { Study, SavedReport, ModelVariant } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { Brain, TrendingUp, AlertTriangle, Save } from 'lucide-react';
+import { Brain, TrendingUp, AlertTriangle, Save, CheckCircle2, FlaskConical } from 'lucide-react';
 
 interface Props {
   study: Study;
@@ -38,8 +38,16 @@ function ReliabilityBar({ value, label, color }: { value: number; label: string;
   );
 }
 
+function formatTime(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  } catch { return ''; }
+}
+
 export default function AIFindingsPanel({ study, model, onSaveReport }: Props) {
   const f = study.findings;
+  const isSynthetic = study.isSynthetic === true;
 
   return (
     <aside className="w-72 shrink-0 bg-[#0f1623] border-l border-slate-800/80 flex flex-col overflow-hidden">
@@ -74,7 +82,48 @@ export default function AIFindingsPanel({ study, model, onSaveReport }: Props) {
         {study.status === 'error' && (
           <div className="flex items-start gap-2 p-3 bg-red-950/40 border border-red-900/60 rounded text-red-400 text-xs">
             <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-            <p>Analysis failed. Check backend connectivity and retry.</p>
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold">Analysis failed</p>
+              <p className="mt-1 text-red-400/80 break-words" data-testid="analysis-error-message">
+                {study.errorMessage ?? 'Check backend connectivity and retry.'}
+              </p>
+              {(model === 'phase2' || model === 'phase4b') && (
+                <p className="mt-2 text-amber-400/80 italic">
+                  Hint: {model} is a temporal (cine-loop) model and expects 16-frame input.
+                  Single-frame demo subjects only work with phase0 and phase4a.
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {f && study.status === 'done' && !isSynthetic && (
+          <div className="flex items-center gap-2 px-2.5 py-1.5 bg-emerald-500/10 border border-emerald-500/30 rounded text-emerald-400 text-[11px] font-semibold">
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span>AI Analysis Complete</span>
+            {study.analyzedAt && (
+              <span className="ml-auto text-emerald-500/70 font-normal">
+                {formatTime(study.analyzedAt)}
+              </span>
+            )}
+          </div>
+        )}
+
+        {f && study.status === 'done' && isSynthetic && (
+          <div
+            data-testid="synthetic-fallback-banner"
+            className="flex items-start gap-2 p-2.5 bg-amber-500/10 border border-amber-500/40 rounded text-amber-300 text-[11px]"
+          >
+            <FlaskConical className="w-4 h-4 shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              <p className="font-semibold uppercase tracking-wider">Synthetic Demo Result</p>
+              <p className="mt-0.5 text-amber-300/80 leading-snug">
+                Backend inference unavailable. Values below are pre-baked demo numbers, not from the model.
+              </p>
+              {study.analyzedAt && (
+                <p className="mt-1 text-amber-400/60 font-normal">{formatTime(study.analyzedAt)}</p>
+              )}
+            </div>
           </div>
         )}
 
@@ -110,11 +159,11 @@ export default function AIFindingsPanel({ study, model, onSaveReport }: Props) {
             )}
 
             <div className={cn('text-[10px] text-slate-600 flex justify-between')}>
-              <span>Model: {model}</span>
+              <span>Model: {model}{isSynthetic ? ' · synthetic' : ''}</span>
               <span>{f.elapsed_ms.toFixed(0)} ms</span>
             </div>
 
-            {f.hc_mm != null && (
+            {f.hc_mm != null && !isSynthetic && (
               <button
                 onClick={() =>
                   onSaveReport({

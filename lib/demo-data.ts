@@ -43,13 +43,18 @@ function svgUrl(svg: string): string {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
-export const DEMO_STUDY_IDS = new Set<string>(['demo-001', 'demo-002', 'demo-003']);
+// Generic placeholder shown while real images are loading from the API
+const placeholderSvg = [
+  `<svg xmlns="http://www.w3.org/2000/svg" width="500" height="400">`,
+  `<rect width="500" height="400" fill="#080c14"/>`,
+  `<text x="250" y="195" text-anchor="middle" font-family="sans-serif" font-size="13" fill="#334155">Loading image…</text>`,
+  `<text x="250" y="215" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#1e3a4a">from API</text>`,
+  `</svg>`,
+].join('');
+export const PLACEHOLDER_SVG_URL = svgUrl(placeholderSvg);
 
-const RAW_IMAGES: Record<string, string> = {
-  'demo-001': svgUrl(makeFetalHeadSvg(104, 87, false)),
-  'demo-002': svgUrl(makeFetalHeadSvg(127, 107, false)),
-  'demo-003': svgUrl(makeFetalHeadSvg(148, 124, false)),
-};
+// Kept for offline-fallback: used when /demo/list returns nothing
+export const DEMO_STUDY_IDS = new Set<string>(['demo-001', 'demo-002', 'demo-003']);
 
 const OVERLAY_IMAGES: Record<string, string> = {
   'demo-001': svgUrl(makeFetalHeadSvg(104, 87, true)),
@@ -123,29 +128,31 @@ export function getDemoOverlayImage(studyId: string): string | undefined {
   return OVERLAY_IMAGES[studyId];
 }
 
+// Used as the initial state and as offline fallback when /demo/list returns nothing.
+// GA weeks are intentionally absent — they're unknown until inference runs.
 export const INITIAL_STUDIES: Study[] = [
   {
     id: 'demo-001',
-    patientName: 'Study A — 22 wks',
+    patientName: 'Demo Study A',
     studyDate: '2026-05-03',
     status: 'pending',
-    imageDataUrl: RAW_IMAGES['demo-001'],
+    imageDataUrl: svgUrl(makeFetalHeadSvg(104, 87, false)),
     isDemo: true,
   },
   {
     id: 'demo-002',
-    patientName: 'Study B — 28 wks',
+    patientName: 'Demo Study B',
     studyDate: '2026-05-02',
     status: 'pending',
-    imageDataUrl: RAW_IMAGES['demo-002'],
+    imageDataUrl: svgUrl(makeFetalHeadSvg(127, 107, false)),
     isDemo: true,
   },
   {
     id: 'demo-003',
-    patientName: 'Study C — 33 wks',
+    patientName: 'Demo Study C',
     studyDate: '2026-05-01',
     status: 'pending',
-    imageDataUrl: RAW_IMAGES['demo-003'],
+    imageDataUrl: svgUrl(makeFetalHeadSvg(148, 124, false)),
     isDemo: true,
   },
 ];

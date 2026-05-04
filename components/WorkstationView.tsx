@@ -6,8 +6,8 @@ import StudyViewer from './StudyViewer';
 import AIFindingsPanel from './AIFindingsPanel';
 import ReportsTab from './ReportsTab';
 import type { Study, SavedReport, ModelVariant } from '@/lib/types';
-import { runInference, listDemoSubjects, API_BASE } from '@/lib/api';
-import { INITIAL_STUDIES, DEMO_STUDY_IDS, getDemoFindings, getDemoOverlayImage } from '@/lib/demo-data';
+import { runInference, listDemoSubjects, getApiHealth, API_BASE } from '@/lib/api';
+import { INITIAL_STUDIES, getDemoFindings, getDemoOverlayImage, PLACEHOLDER_SVG_URL } from '@/lib/demo-data';
 
 export default function WorkstationView() {
   const [studies, setStudies] = useState<Study[]>(INITIAL_STUDIES);
@@ -16,21 +16,45 @@ export default function WorkstationView() {
   const [pixelSpacing, setPixelSpacing] = useState(0.2);
   const [threshold, setThreshold] = useState(0.5);
   const [reportsOpen, setReportsOpen] = useState(false);
+  const [apiStatus, setApiStatus] = useState<'checking' | 'live' | 'no-models' | 'offline'>('checking');
+  const [apiModelCount, setApiModelCount] = useState(0);
 
   const selectedStudy = studies.find(s => s.id === selectedId) ?? studies[0]!;
-  const isDemo = DEMO_STUDY_IDS.has(selectedStudy.id);
 
-  // On mount: fetch real demo images from HF Space, replacing synthetic SVGs
+  // Check API health on mount — drives the header status badge
   useEffect(() => {
-    async function loadDemoImages() {
+    getApiHealth().then(health => {
+      if (!health) { setApiStatus('offline'); return; }
+      setApiModelCount(health.models_available.length);
+      setApiStatus(health.models_available.length > 0 ? 'live' : 'no-models');
+    });
+  }, []);
+
+  // On mount: fetch all demo subjects from the API and create studies dynamically.
+  // Falls back to INITIAL_STUDIES (synthetic SVGs) when the API is offline.
+  useEffect(() => {
+    async function loadDemoStudies() {
       const files = await listDemoSubjects();
       if (files.length === 0) return;
-      const demoIds = ['demo-001', 'demo-002', 'demo-003'];
-      for (let i = 0; i < Math.min(files.length, demoIds.length); i++) {
-        const filename = files[i];
-        const demoId = demoIds[i];
+
+      const today = new Date();
+      const newStudies: Study[] = files.map((filename, i) => ({
+        id: `demo-${String(i + 1).padStart(3, '0')}`,
+        patientName: `Demo Subject ${i + 1}`,
+        studyDate: new Date(today.getTime() - i * 86400000).toISOString().split('T')[0],
+        status: 'pending' as const,
+        imageDataUrl: PLACEHOLDER_SVG_URL,
+        isDemo: true,
+        demoImagePath: filename,
+      }));
+
+      setStudies(newStudies);
+      setSelectedId(newStudies[0].id);
+
+      // Load actual images asynchronously so the worklist populates progressively
+      for (const study of newStudies) {
         try {
-          const res = await fetch(`${API_BASE}/demo/${encodeURIComponent(filename)}`);
+          const res = await fetch(`${API_BASE}/demo/${encodeURIComponent(study.demoImagePath!)}`);
           if (!res.ok) continue;
           const blob = await res.blob();
           const dataUrl = await new Promise<string>((resolve, reject) => {
@@ -40,22 +64,20 @@ export default function WorkstationView() {
             reader.readAsDataURL(blob);
           });
           setStudies(prev =>
-            prev.map(s =>
-              s.id === demoId ? { ...s, imageDataUrl: dataUrl, demoImagePath: filename } : s
-            )
+            prev.map(s => s.id === study.id ? { ...s, imageDataUrl: dataUrl } : s)
           );
         } catch {
-          // keep synthetic SVG fallback
+          // keep placeholder for this study
         }
       }
     }
-    loadDemoImages();
+    loadDemoStudies();
   }, []);
 
   const handleImageLoad = useCallback((studyId: string, imageDataUrl: string) => {
     setStudies(prev =>
       prev.map(s =>
-        s.id === studyId ? { ...s, imageDataUrl, status: 'pending', findings: undefined } : s
+        s.id === studyId ? { ...s, imageDataUrl, status: 'pending', findings: undefined, errorMessage: undefined, isSynthetic: false } : s
       )
     );
   }, []);
@@ -63,16 +85,20 @@ export default function WorkstationView() {
   const handleAnalyze = useCallback(
     async (file: File | null) => {
       setStudies(prev =>
-        prev.map(s => (s.id === selectedId ? { ...s, status: 'analyzing' } : s))
+        prev.map(s => (s.id === selectedId ? { ...s, status: 'analyzing', errorMessage: undefined, isSynthetic: false } : s))
       );
 
-      if (DEMO_STUDY_IDS.has(selectedId)) {
-        // Try real inference using the actual HF Space demo image
+      if (selectedStudy.isDemo) {
+        let lastError: string | undefined;
+
+        // Try real inference via the API
         if (selectedStudy.demoImagePath) {
           try {
-            const res = await fetch(`${API_BASE}/demo/${encodeURIComponent(selectedStudy.demoImagePath)}`);
-            if (res.ok) {
-              const blob = await res.blob();
+            const imgRes = await fetch(`${API_BASE}/demo/${encodeURIComponent(selectedStudy.demoImagePath)}`);
+            if (!imgRes.ok) {
+              lastError = `Could not fetch demo image (${imgRes.status})`;
+            } else {
+              const blob = await imgRes.blob();
               const imageFile = new File([blob], selectedStudy.demoImagePath, { type: blob.type });
               const findings = await runInference({
                 image: imageFile,
@@ -80,33 +106,53 @@ export default function WorkstationView() {
                 threshold,
                 modelVariant: model,
               });
+              const overlayDataUrl = findings.overlay_b64
+                ? `data:image/png;base64,${findings.overlay_b64}`
+                : undefined;
               setStudies(prev =>
                 prev.map(s =>
-                  s.id === selectedId ? { ...s, status: 'done', findings } : s
+                  s.id === selectedId
+                    ? {
+                        ...s,
+                        status: 'done',
+                        findings,
+                        analyzedAt: new Date().toISOString(),
+                        errorMessage: undefined,
+                        isSynthetic: false,
+                        ...(overlayDataUrl ? { imageDataUrl: overlayDataUrl } : {}),
+                      }
+                    : s
                 )
               );
               return;
             }
-          } catch {
-            // fall through to pre-baked
+          } catch (err) {
+            lastError = err instanceof Error ? err.message : 'Inference failed';
           }
         }
 
-        // Pre-baked fallback (used when HF Space is cold / unavailable)
+        // Pre-baked fallback: keep the real image if it was already loaded;
+        // only swap to synthetic overlay for the original 3 studies when no real image exists.
+        // Mark isSynthetic=true so the UI clearly shows these are fabricated values.
         await new Promise(resolve => setTimeout(resolve, 1600));
         const findings = getDemoFindings(selectedId);
-        const overlayImg = getDemoOverlayImage(selectedId);
         setStudies(prev =>
-          prev.map(s =>
-            s.id === selectedId
-              ? {
-                  ...s,
-                  status: findings ? 'done' : 'error',
-                  findings,
-                  imageDataUrl: findings ? overlayImg : s.imageDataUrl,
-                }
-              : s
-          )
+          prev.map(s => {
+            if (s.id !== selectedId) return s;
+            const overlayImg = !s.demoImagePath ? getDemoOverlayImage(selectedId) : undefined;
+            if (findings) {
+              return {
+                ...s,
+                status: 'done',
+                findings,
+                analyzedAt: new Date().toISOString(),
+                errorMessage: undefined,
+                isSynthetic: true,
+                ...(overlayImg ? { imageDataUrl: overlayImg } : {}),
+              };
+            }
+            return { ...s, status: 'error', errorMessage: lastError, isSynthetic: false };
+          })
         );
         return;
       }
@@ -119,13 +165,29 @@ export default function WorkstationView() {
           threshold,
           modelVariant: model,
         });
+        const overlayDataUrl = findings.overlay_b64
+          ? `data:image/png;base64,${findings.overlay_b64}`
+          : undefined;
         setStudies(prev =>
-          prev.map(s => (s.id === selectedId ? { ...s, status: 'done', findings } : s))
+          prev.map(s =>
+            s.id === selectedId
+              ? {
+                  ...s,
+                  status: 'done',
+                  findings,
+                  analyzedAt: new Date().toISOString(),
+                  errorMessage: undefined,
+                  isSynthetic: false,
+                  ...(overlayDataUrl ? { imageDataUrl: overlayDataUrl } : {}),
+                }
+              : s
+          )
         );
       } catch (err) {
+        const message = err instanceof Error ? err.message : 'Inference failed';
         console.error(err);
         setStudies(prev =>
-          prev.map(s => (s.id === selectedId ? { ...s, status: 'error' } : s))
+          prev.map(s => (s.id === selectedId ? { ...s, status: 'error', errorMessage: message } : s))
         );
       }
     },
@@ -166,9 +228,31 @@ export default function WorkstationView() {
             Fetal Head Circumference · Clinical Biometry
           </span>
         </div>
-        <span className="px-2 py-0.5 text-[10px] font-semibold bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded uppercase tracking-wider">
-          Demo
-        </span>
+        <div className="flex items-center gap-2">
+          {apiStatus === 'checking' && (
+            <span className="px-2 py-0.5 text-[10px] font-semibold bg-slate-700/40 border border-slate-600/30 text-slate-400 rounded uppercase tracking-wider">
+              API…
+            </span>
+          )}
+          {apiStatus === 'live' && (
+            <span data-testid="api-status-live" className="px-2 py-0.5 text-[10px] font-semibold bg-teal-500/10 border border-teal-500/30 text-teal-400 rounded uppercase tracking-wider">
+              API Live · {apiModelCount} model{apiModelCount !== 1 ? 's' : ''}
+            </span>
+          )}
+          {apiStatus === 'no-models' && (
+            <span data-testid="api-status-no-models" className="px-2 py-0.5 text-[10px] font-semibold bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded uppercase tracking-wider">
+              API · No models loaded
+            </span>
+          )}
+          {apiStatus === 'offline' && (
+            <span data-testid="api-status-offline" className="px-2 py-0.5 text-[10px] font-semibold bg-red-500/10 border border-red-500/30 text-red-400 rounded uppercase tracking-wider">
+              API Offline · Demo mode
+            </span>
+          )}
+          <span className="px-2 py-0.5 text-[10px] font-semibold bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded uppercase tracking-wider">
+            Demo
+          </span>
+        </div>
       </header>
 
       <div className="flex flex-1 overflow-hidden">
@@ -183,7 +267,7 @@ export default function WorkstationView() {
           onThresholdChange={setThreshold}
           onImageLoad={handleImageLoad}
           onAnalyze={handleAnalyze}
-          isDemo={isDemo}
+          isDemo={selectedStudy.isDemo ?? false}
         />
         <AIFindingsPanel study={selectedStudy} model={model} onSaveReport={handleSaveReport} />
       </div>
