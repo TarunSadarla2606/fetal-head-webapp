@@ -38,6 +38,14 @@ export interface Study {
   isSynthetic?: boolean;
 }
 
+export interface CompareResult {
+  variant: ModelVariant;
+  label: string;
+  status: 'analyzing' | 'done' | 'error';
+  findings?: InferResponse;
+  error?: string;
+}
+
 export interface SavedReport {
   id: string;
   patientName: string;

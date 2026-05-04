@@ -3,7 +3,7 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import type { Study, ModelVariant } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { Upload, Play, Loader2, CheckCircle2, Info, FlaskConical } from 'lucide-react';
+import { Upload, Play, Loader2, CheckCircle2, Info, FlaskConical, LayoutGrid } from 'lucide-react';
 
 const MODEL_OPTIONS: { value: ModelVariant; label: string }[] = [
   { value: 'phase0',  label: 'Standard · Single Frame' },
@@ -24,6 +24,8 @@ interface Props {
   onThresholdChange: (v: number) => void;
   onImageLoad: (studyId: string, dataUrl: string) => void;
   onAnalyze: (file: File | null) => void;
+  onCompareAll: () => void;
+  onFileChange: (file: File | null) => void;
   isDemo: boolean;
 }
 
@@ -37,12 +39,16 @@ export default function StudyViewer({
   onThresholdChange,
   onImageLoad,
   onAnalyze,
+  onCompareAll,
+  onFileChange,
   isDemo,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const analysisStartRef = useRef<number | null>(null);
   const [currentFile, setCurrentFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [elapsedSec, setElapsedSec] = useState(0);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -65,10 +71,27 @@ export default function StudyViewer({
     img.src = src;
   }, [study.imageDataUrl, study.findings?.overlay_b64]);
 
+  // Elapsed timer: counts up while analysis is running
+  useEffect(() => {
+    if (study.status !== 'analyzing') {
+      setElapsedSec(0);
+      analysisStartRef.current = null;
+      return;
+    }
+    analysisStartRef.current = Date.now();
+    const id = setInterval(() => {
+      if (analysisStartRef.current !== null) {
+        setElapsedSec((Date.now() - analysisStartRef.current) / 1000);
+      }
+    }, 100);
+    return () => clearInterval(id);
+  }, [study.status]);
+
   const loadFile = useCallback(
     (file: File) => {
       if (!file.type.startsWith('image/')) return;
       setCurrentFile(file);
+      onFileChange(file);
       const reader = new FileReader();
       reader.onload = e => {
         const result = e.target?.result;
@@ -76,7 +99,7 @@ export default function StudyViewer({
       };
       reader.readAsDataURL(file);
     },
-    [study.id, onImageLoad]
+    [study.id, onImageLoad, onFileChange]
   );
 
   const handleDrop = useCallback(
@@ -153,22 +176,38 @@ export default function StudyViewer({
           />
         </label>
 
-        <button
-          onClick={() => { if (!isAnalyzing) onAnalyze(isDemo ? null : currentFile); }}
-          disabled={!canRun}
-          className={cn(
-            'ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded transition-colors',
-            canRun
-              ? 'bg-[#0D7680] hover:bg-[#0a5f67] text-white'
-              : 'bg-slate-800 text-slate-600 cursor-not-allowed'
-          )}
-        >
-          {isAnalyzing ? (
-            <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Analyzing…</>
-          ) : (
-            <><Play className="w-3.5 h-3.5" /> Run AI</>
-          )}
-        </button>
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            onClick={() => { if (canRun) onCompareAll(); }}
+            disabled={!canRun}
+            title="Run all 4 models in parallel on this image"
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded transition-colors',
+              canRun
+                ? 'bg-slate-700 hover:bg-slate-600 text-slate-200'
+                : 'bg-slate-800 text-slate-600 cursor-not-allowed'
+            )}
+          >
+            <LayoutGrid className="w-3.5 h-3.5" /> Compare All
+          </button>
+
+          <button
+            onClick={() => { if (!isAnalyzing) onAnalyze(isDemo ? null : currentFile); }}
+            disabled={!canRun}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded transition-colors',
+              canRun
+                ? 'bg-[#0D7680] hover:bg-[#0a5f67] text-white'
+                : 'bg-slate-800 text-slate-600 cursor-not-allowed'
+            )}
+          >
+            {isAnalyzing ? (
+              <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Analyzing… {elapsedSec.toFixed(1)}s</>
+            ) : (
+              <><Play className="w-3.5 h-3.5" /> Run AI</>
+            )}
+          </button>
+        </div>
       </div>
 
       <div

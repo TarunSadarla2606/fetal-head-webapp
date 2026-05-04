@@ -1,13 +1,22 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import WorklistSidebar from './WorklistSidebar';
 import StudyViewer from './StudyViewer';
 import AIFindingsPanel from './AIFindingsPanel';
+import CompareView from './CompareView';
 import ReportsTab from './ReportsTab';
-import type { Study, SavedReport, ModelVariant } from '@/lib/types';
+import type { Study, SavedReport, ModelVariant, CompareResult } from '@/lib/types';
 import { runInference, listDemoSubjects, getApiHealth, API_BASE } from '@/lib/api';
 import { INITIAL_STUDIES, getDemoFindings, getDemoOverlayImage, PLACEHOLDER_SVG_URL } from '@/lib/demo-data';
+
+const ALL_VARIANTS: ModelVariant[] = ['phase0', 'phase2', 'phase4a', 'phase4b'];
+const VARIANT_LABEL: Record<ModelVariant, string> = {
+  phase0:  'Standard · Single Frame',
+  phase2:  'Standard · Cine Loop',
+  phase4a: 'Express · Single Frame',
+  phase4b: 'Express · Cine Loop',
+};
 
 export default function WorkstationView() {
   const [studies, setStudies] = useState<Study[]>(INITIAL_STUDIES);
@@ -18,6 +27,8 @@ export default function WorkstationView() {
   const [reportsOpen, setReportsOpen] = useState(false);
   const [apiStatus, setApiStatus] = useState<'checking' | 'live' | 'no-models' | 'offline'>('checking');
   const [apiModelCount, setApiModelCount] = useState(0);
+  const [compareResults, setCompareResults] = useState<CompareResult[] | null>(null);
+  const currentFileRef = useRef<File | null>(null);
 
   const selectedStudy = studies.find(s => s.id === selectedId) ?? studies[0]!;
 
@@ -82,8 +93,13 @@ export default function WorkstationView() {
     );
   }, []);
 
+  const handleFileChange = useCallback((file: File | null) => {
+    currentFileRef.current = file;
+  }, []);
+
   const handleAnalyze = useCallback(
     async (file: File | null) => {
+      setCompareResults(null);
       setStudies(prev =>
         prev.map(s => (s.id === selectedId ? { ...s, status: 'analyzing', errorMessage: undefined, isSynthetic: false } : s))
       );
@@ -131,9 +147,7 @@ export default function WorkstationView() {
           }
         }
 
-        // Pre-baked fallback: keep the real image if it was already loaded;
-        // only swap to synthetic overlay for the original 3 studies when no real image exists.
-        // Mark isSynthetic=true so the UI clearly shows these are fabricated values.
+        // Pre-baked fallback: mark isSynthetic=true so the UI clearly shows fabricated values.
         await new Promise(resolve => setTimeout(resolve, 1600));
         const findings = getDemoFindings(selectedId);
         setStudies(prev =>
@@ -193,6 +207,57 @@ export default function WorkstationView() {
     },
     [selectedId, selectedStudy, pixelSpacing, threshold, model]
   );
+
+  const handleCompareAll = useCallback(async () => {
+    // Initialise all four slots to 'analyzing'
+    setCompareResults(
+      ALL_VARIANTS.map(v => ({ variant: v, label: VARIANT_LABEL[v], status: 'analyzing' }))
+    );
+
+    // Resolve the image file once — fetch from API for demo, use uploaded file otherwise
+    let imageFile: File | null = null;
+    if (selectedStudy.isDemo && selectedStudy.demoImagePath) {
+      try {
+        const res = await fetch(`${API_BASE}/demo/${encodeURIComponent(selectedStudy.demoImagePath)}`);
+        if (res.ok) {
+          const blob = await res.blob();
+          imageFile = new File([blob], selectedStudy.demoImagePath, { type: blob.type });
+        }
+      } catch { /* leave null */ }
+    } else {
+      imageFile = currentFileRef.current;
+    }
+
+    if (!imageFile) {
+      setCompareResults(
+        ALL_VARIANTS.map(v => ({ variant: v, label: VARIANT_LABEL[v], status: 'error', error: 'Could not load image' }))
+      );
+      return;
+    }
+
+    const file = imageFile;
+    // Fire all 4 in parallel; update each slot as it completes
+    await Promise.all(
+      ALL_VARIANTS.map(async variant => {
+        try {
+          const findings = await runInference({
+            image: file,
+            pixelSpacingMm: pixelSpacing,
+            threshold,
+            modelVariant: variant,
+          });
+          setCompareResults(prev =>
+            prev!.map(r => r.variant === variant ? { ...r, status: 'done', findings } : r)
+          );
+        } catch (err) {
+          const error = err instanceof Error ? err.message : 'Inference failed';
+          setCompareResults(prev =>
+            prev!.map(r => r.variant === variant ? { ...r, status: 'error', error } : r)
+          );
+        }
+      })
+    );
+  }, [selectedStudy, pixelSpacing, threshold]);
 
   const handleSaveReport = useCallback(
     (report: Omit<SavedReport, 'id' | 'analyzedAt'>) => {
@@ -256,20 +321,33 @@ export default function WorkstationView() {
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        <WorklistSidebar studies={studies} selectedId={selectedId} onSelect={setSelectedId} />
-        <StudyViewer
-          study={selectedStudy}
-          model={model}
-          onModelChange={setModel}
-          pixelSpacing={pixelSpacing}
-          onPixelSpacingChange={setPixelSpacing}
-          threshold={threshold}
-          onThresholdChange={setThreshold}
-          onImageLoad={handleImageLoad}
-          onAnalyze={handleAnalyze}
-          isDemo={selectedStudy.isDemo ?? false}
-        />
-        <AIFindingsPanel study={selectedStudy} model={model} onSaveReport={handleSaveReport} />
+        <WorklistSidebar studies={studies} selectedId={selectedId} onSelect={id => { setSelectedId(id); setCompareResults(null); }} />
+
+        {compareResults !== null ? (
+          <CompareView
+            study={selectedStudy}
+            results={compareResults}
+            onClose={() => setCompareResults(null)}
+          />
+        ) : (
+          <>
+            <StudyViewer
+              study={selectedStudy}
+              model={model}
+              onModelChange={setModel}
+              pixelSpacing={pixelSpacing}
+              onPixelSpacingChange={setPixelSpacing}
+              threshold={threshold}
+              onThresholdChange={setThreshold}
+              onImageLoad={handleImageLoad}
+              onAnalyze={handleAnalyze}
+              onCompareAll={handleCompareAll}
+              onFileChange={handleFileChange}
+              isDemo={selectedStudy.isDemo ?? false}
+            />
+            <AIFindingsPanel study={selectedStudy} model={model} onSaveReport={handleSaveReport} />
+          </>
+        )}
       </div>
 
       <ReportsTab isOpen={reportsOpen} onToggle={() => setReportsOpen(o => !o)} />
