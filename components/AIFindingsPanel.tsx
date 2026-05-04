@@ -44,6 +44,9 @@ interface ReportFormState {
   clinicalIndication: string;
   usApproach: 'transabdominal' | 'transvaginal';
   imageQuality: 'optimal' | 'suboptimal' | 'limited';
+  // v3.1: optional secondary biometric + fetal lie
+  fetalPresentation: 'cephalic' | 'breech' | 'transverse' | 'not_assessed';
+  bpdMm: string; // text input — parsed to number on submit; empty string allowed
 }
 
 function Metric({ label, value, sub }: { label: string; value: string; sub?: string }) {
@@ -221,6 +224,33 @@ function ReportFormModal({
                   <option value="limited">Limited</option>
                 </select>
               </div>
+              <div>
+                <label className="text-[10px] text-slate-500 font-semibold">Fetal Lie / Presentation</label>
+                <select
+                  value={form.fetalPresentation}
+                  onChange={e => set('fetalPresentation', e.target.value as ReportFormState['fetalPresentation'])}
+                  className="mt-1 w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-[#0D7680]"
+                >
+                  <option value="not_assessed">Not assessed</option>
+                  <option value="cephalic">Cephalic</option>
+                  <option value="breech">Breech</option>
+                  <option value="transverse">Transverse</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] text-slate-500 font-semibold">
+                  BPD (mm) — optional
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={form.bpdMm}
+                  onChange={e => set('bpdMm', e.target.value)}
+                  placeholder="e.g. 58.4"
+                  className="mt-1 w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-[#0D7680]"
+                />
+              </div>
             </div>
           </div>
 
@@ -301,6 +331,8 @@ export default function AIFindingsPanel({ study, model, onSaveReport }: Props) {
       usApproach: form.usApproach,
       imageQuality: form.imageQuality,
       reportMode: form.reportMode,
+      fetalPresentation: form.fetalPresentation,
+      bpdMm: form.bpdMm.trim() ? Number(form.bpdMm) : undefined,
     });
     setShowForm(false);
   };
@@ -318,6 +350,8 @@ export default function AIFindingsPanel({ study, model, onSaveReport }: Props) {
     clinicalIndication: '',
     usApproach: 'transabdominal',
     imageQuality: 'optimal',
+    fetalPresentation: 'not_assessed',
+    bpdMm: '',
   };
 
   return (

@@ -82,7 +82,11 @@ export interface SavedReport {
   usApproach?: 'transabdominal' | 'transvaginal';
   imageQuality?: 'optimal' | 'suboptimal' | 'limited';
   reportMode?: 'template' | 'llm';
+  fetalPresentation?: FetalPresentation;
+  bpdMm?: number;
 }
+
+export type FetalPresentation = 'cephalic' | 'breech' | 'transverse' | 'not_assessed';
 
 // ─── Batch 6: Reports API ─────────────────────────────────────────────────────
 
@@ -128,6 +132,8 @@ export interface ApiReport {
   original_image_b64: string | null;
   overlay_image_b64: string | null;
   gradcam_image_b64: string | null;
+  fetal_presentation: string | null;
+  bpd_mm: number | null;
 }
 
 export interface ApiAuditEntry {
@@ -167,6 +173,8 @@ export interface CreateReportPayload {
   us_approach?: 'transabdominal' | 'transvaginal';
   image_quality?: 'optimal' | 'suboptimal' | 'limited';
   report_mode?: 'template' | 'llm';
+  fetal_presentation?: FetalPresentation;
+  bpd_mm?: number;
 }
 
 export interface SignReportPayload {

@@ -272,16 +272,22 @@ function SignOffDialog({
           </div>
           <div>
             <label className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
-              Note (optional)
+              Verification note (clinical)
             </label>
             <textarea
               data-testid="signoff-note"
               value={state.note}
-              onChange={(e) => onChange({ ...state, note: e.target.value })}
+              onChange={(e) =>
+                onChange({ ...state, note: e.target.value.slice(0, 300) })
+              }
               rows={3}
-              placeholder="e.g. Concur with measurement; recommend follow-up scan in 4 weeks."
+              maxLength={300}
+              placeholder="e.g. HC boundary confirmed at outer calvarium margin. No measurement artifact identified."
               className="mt-1 w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-[#0D7680] resize-none"
             />
+            <p className="mt-1 text-[9px] text-slate-600 text-right">
+              {state.note.length}/300 characters
+            </p>
           </div>
           {state.error && (
             <p data-testid="signoff-error" className="text-[11px] text-red-400">

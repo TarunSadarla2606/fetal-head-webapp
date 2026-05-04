@@ -326,6 +326,8 @@ export default function WorkstationView() {
         us_approach: report.usApproach,
         image_quality: report.imageQuality,
         report_mode: report.reportMode ?? 'template',
+        fetal_presentation: report.fetalPresentation,
+        bpd_mm: report.bpdMm,
       };
       try {
         const created = await createReport(selectedStudy.id, payload);
