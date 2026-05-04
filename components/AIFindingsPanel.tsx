@@ -2,7 +2,17 @@
 
 import type { Study, SavedReport, ModelVariant } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { Brain, TrendingUp, AlertTriangle, Save, CheckCircle2, FlaskConical } from 'lucide-react';
+import { Brain, TrendingUp, AlertTriangle, Save, CheckCircle2, FlaskConical, ShieldAlert } from 'lucide-react';
+
+// Spec 5.5: explicit reliability thresholds
+//   reliability >= 0.85 → green (HIGH)
+//   0.70 <= reliability < 0.85 → amber (MEDIUM)
+//   reliability < 0.70 → red (LOW)
+function reliabilityTier(value: number): { label: string; color: string; tier: 'high' | 'medium' | 'low' } {
+  if (value >= 0.85) return { label: 'HIGH', color: '#10b981', tier: 'high' };
+  if (value >= 0.70) return { label: 'MEDIUM', color: '#f59e0b', tier: 'medium' };
+  return { label: 'LOW', color: '#ef4444', tier: 'low' };
+}
 
 interface Props {
   study: Study;
@@ -20,19 +30,25 @@ function Metric({ label, value, sub }: { label: string; value: string; sub?: str
   );
 }
 
-function ReliabilityBar({ value, label, color }: { value: number; label: string; color: string }) {
+function ReliabilityBar({ value }: { value: number }) {
   const pct = Math.round(value * 100);
+  const tier = reliabilityTier(value);
   return (
-    <div className="space-y-1.5">
+    <div data-testid="reliability-bar" data-tier={tier.tier} className="space-y-1.5">
       <div className="flex justify-between text-xs">
         <span className="text-slate-500">Reliability</span>
-        <span style={{ color }} className="font-semibold">{label} ({pct}%)</span>
+        <span style={{ color: tier.color }} className="font-semibold">{tier.label} ({pct}%)</span>
       </div>
       <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
         <div
           className="h-full rounded-full transition-all duration-700"
-          style={{ width: `${pct}%`, backgroundColor: color }}
+          style={{ width: `${pct}%`, backgroundColor: tier.color }}
         />
+      </div>
+      <div className="flex justify-between text-[9px] text-slate-600">
+        <span className="text-red-400/70">&lt;70 LOW</span>
+        <span className="text-amber-400/70">70–85 MED</span>
+        <span className="text-emerald-400/70">≥85 HIGH</span>
       </div>
     </div>
   );
@@ -57,6 +73,23 @@ export default function AIFindingsPanel({ study, model, onSaveReport }: Props) {
       </div>
 
       <div className="flex-1 overflow-y-auto p-3 space-y-4">
+        {/* Spec 5.6: OOD banner above findings panel when the API flagged this
+            input as out-of-distribution. The XAI tab carries the full reasoning. */}
+        {f && f.ood_flag && (
+          <div
+            data-testid="ood-banner"
+            className="flex items-start gap-2 p-2.5 rounded border border-amber-500/50 bg-amber-500/10 text-amber-200"
+          >
+            <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-bold uppercase tracking-wider">Out-of-distribution warning</p>
+              <p className="text-[11px] mt-0.5 text-amber-200/80 leading-snug">
+                Input did not pass all distribution checks. Treat the result with caution and review the XAI tab for details.
+              </p>
+            </div>
+          </div>
+        )}
+
         <div>
           <p className="text-xs text-slate-500">Study</p>
           <p className="text-sm font-semibold text-slate-200">{study.patientName}</p>
@@ -142,21 +175,7 @@ export default function AIFindingsPanel({ study, model, onSaveReport }: Props) {
               />
             </div>
 
-            <ReliabilityBar value={f.reliability} label={f.confidence_label} color={f.confidence_color} />
-
-            {f.ood_flag && (
-              <div className="flex items-start gap-2 p-2.5 bg-yellow-950/40 border border-yellow-900/60 rounded text-yellow-400 text-xs">
-                <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-semibold">Out-of-distribution image</p>
-                  {f.ood_reasons.length > 0 && (
-                    <ul className="mt-1 space-y-0.5 list-disc list-inside">
-                      {f.ood_reasons.map((r, i) => <li key={i}>{r}</li>)}
-                    </ul>
-                  )}
-                </div>
-              </div>
-            )}
+            <ReliabilityBar value={f.reliability} />
 
             <div className={cn('text-[10px] text-slate-600 flex justify-between')}>
               <span>Model: {model}{isSynthetic ? ' · synthetic' : ''}</span>

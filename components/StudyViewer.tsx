@@ -3,7 +3,10 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import type { Study, ModelVariant } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { Upload, Play, Loader2, CheckCircle2, Info, FlaskConical, LayoutGrid } from 'lucide-react';
+import { Upload, Play, Loader2, CheckCircle2, Info, FlaskConical, LayoutGrid, Image as ImageIcon, Sparkles } from 'lucide-react';
+import XAIPanel from './XAIPanel';
+
+type ViewerTab = 'image' | 'xai';
 
 const MODEL_OPTIONS: { value: ModelVariant; label: string }[] = [
   { value: 'phase0',  label: 'Standard · Single Frame' },
@@ -49,6 +52,13 @@ export default function StudyViewer({
   const [currentFile, setCurrentFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [elapsedSec, setElapsedSec] = useState(0);
+  const [tab, setTab] = useState<ViewerTab>('image');
+
+  // Reset to image tab whenever a new analysis starts or the study switches —
+  // an XAI overlay tied to a stale finding_id would 404 against the API.
+  useEffect(() => {
+    if (study.status === 'analyzing' || study.status === 'pending') setTab('image');
+  }, [study.id, study.status]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -210,6 +220,35 @@ export default function StudyViewer({
         </div>
       </div>
 
+      {/* Tab switcher: Image View ‖ XAI. XAI is enabled only when we have a
+          real (non-synthetic) finding_id from a successful /infer call. */}
+      <div className="flex items-center gap-1 px-3 py-1 bg-[#0b1018] border-b border-slate-800/80 shrink-0">
+        <TabButton
+          active={tab === 'image'}
+          onClick={() => setTab('image')}
+          icon={<ImageIcon className="w-3 h-3" />}
+          label="Image View"
+        />
+        <TabButton
+          active={tab === 'xai'}
+          onClick={() => setTab('xai')}
+          icon={<Sparkles className="w-3 h-3" />}
+          label="XAI Explanations"
+          disabled={!isDone || isSynthetic || !study.findings?.finding_id}
+          disabledReason={
+            !isDone
+              ? 'Run AI to generate explanations'
+              : isSynthetic
+                ? 'XAI unavailable in synthetic mode'
+                : 'No finding_id'
+          }
+          testId="xai-tab"
+        />
+      </div>
+
+      {tab === 'xai' && isDone && !isSynthetic && study.findings?.finding_id ? (
+        <XAIPanel findingId={study.findings.finding_id} />
+      ) : (
       <div
         className="flex-1 overflow-auto flex items-center justify-center p-4 relative"
         onDrop={handleDrop}
@@ -272,8 +311,45 @@ export default function StudyViewer({
           </div>
         )}
       </div>
+      )}
 
       <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
     </div>
+  );
+}
+
+function TabButton({
+  active,
+  onClick,
+  icon,
+  label,
+  disabled,
+  disabledReason,
+  testId,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+  disabled?: boolean;
+  disabledReason?: string;
+  testId?: string;
+}) {
+  return (
+    <button
+      data-testid={testId}
+      onClick={() => { if (!disabled) onClick(); }}
+      title={disabled ? disabledReason : label}
+      className={cn(
+        'flex items-center gap-1.5 px-3 py-1 text-[11px] font-semibold rounded transition-colors',
+        disabled
+          ? 'text-slate-600 cursor-not-allowed'
+          : active
+            ? 'bg-[#0D7680]/15 text-[#0D7680] border border-[#0D7680]/40'
+            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+      )}
+    >
+      {icon} {label}
+    </button>
   );
 }

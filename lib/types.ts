@@ -7,6 +7,7 @@ export interface ValidationResult {
 }
 
 export interface InferResponse {
+  finding_id: string;
   hc_mm: number | null;
   ga_str: string | null;
   ga_weeks: number | null;
@@ -22,6 +23,18 @@ export interface InferResponse {
   ood_reasons: string[];
   mask_b64: string;
   overlay_b64: string;
+}
+
+export interface OodReason {
+  category: string;
+  detail: string;
+}
+
+export interface OodReport {
+  ood_flag: boolean;
+  score: number;
+  reasons: OodReason[];
+  stats: Record<string, number>;
 }
 
 export interface Study {

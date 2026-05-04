@@ -1,4 +1,4 @@
-import type { InferResponse, ModelVariant } from './types';
+import type { InferResponse, ModelVariant, OodReport } from './types';
 
 export const API_BASE = 'https://tarunsadarla2606-fetal-head-clinical-ai-api.hf.space';
 
@@ -58,5 +58,31 @@ export async function listDemoSubjects(): Promise<string[]> {
     return data.files;
   } catch {
     return [];
+  }
+}
+
+// XAI endpoint helpers (Batch 5)
+
+/** URL of the GradCAM++ overlay PNG for a finding. Suitable for `<img src>`. */
+export function gradcamUrl(findingId: string): string {
+  return `${API_BASE}/findings/${findingId}/gradcam`;
+}
+
+/** URL of the MC uncertainty heatmap PNG for a finding. */
+export function uncertaintyUrl(findingId: string): string {
+  return `${API_BASE}/findings/${findingId}/uncertainty`;
+}
+
+/** Fetch the structured OOD report for a finding. Returns null on error. */
+export async function getOodReport(findingId: string, apiKey?: string): Promise<OodReport | null> {
+  try {
+    const headers: HeadersInit = {};
+    const key = apiKey ?? (typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_API_KEY : '') ?? '';
+    if (key) headers['X-API-Key'] = key;
+    const res = await fetch(`${API_BASE}/findings/${findingId}/ood`, { headers });
+    if (!res.ok) return null;
+    return await res.json() as OodReport;
+  } catch {
+    return null;
   }
 }
