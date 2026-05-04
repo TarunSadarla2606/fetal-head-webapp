@@ -6,8 +6,23 @@ import StudyViewer from './StudyViewer';
 import AIFindingsPanel from './AIFindingsPanel';
 import CompareView from './CompareView';
 import ReportsTab from './ReportsTab';
-import type { Study, SavedReport, ModelVariant, CompareResult } from '@/lib/types';
-import { runInference, listDemoSubjects, getApiHealth, API_BASE } from '@/lib/api';
+import type {
+  ApiReport,
+  CompareResult,
+  CreateReportPayload,
+  ModelVariant,
+  SavedReport,
+  Study,
+} from '@/lib/types';
+import {
+  API_BASE,
+  createReport,
+  getApiHealth,
+  listDemoSubjects,
+  listReportsForStudy,
+  runInference,
+  signReport,
+} from '@/lib/api';
 import { INITIAL_STUDIES, getDemoFindings, getDemoOverlayImage, PLACEHOLDER_SVG_URL } from '@/lib/demo-data';
 
 const ALL_VARIANTS: ModelVariant[] = ['phase0', 'phase2', 'phase4a', 'phase4b'];
@@ -25,6 +40,9 @@ export default function WorkstationView() {
   const [pixelSpacing, setPixelSpacing] = useState(0.2);
   const [threshold, setThreshold] = useState(0.5);
   const [reportsOpen, setReportsOpen] = useState(false);
+  const [reports, setReports] = useState<ApiReport[]>([]);
+  const [reportsLoading, setReportsLoading] = useState(false);
+  const [reportsError, setReportsError] = useState<string | null>(null);
   const [apiStatus, setApiStatus] = useState<'checking' | 'live' | 'no-models' | 'offline'>('checking');
   const [apiModelCount, setApiModelCount] = useState(0);
   const [compareResults, setCompareResults] = useState<CompareResult[] | null>(null);
@@ -259,22 +277,68 @@ export default function WorkstationView() {
     );
   }, [selectedStudy, pixelSpacing, threshold]);
 
+  // Refetches the currently-selected study's reports from the API.
+  // Triggered when the panel opens or after a create / sign mutation.
+  const refreshReports = useCallback(async () => {
+    if (!selectedStudy) return;
+    setReportsLoading(true);
+    setReportsError(null);
+    try {
+      const fetched = await listReportsForStudy(selectedStudy.id);
+      setReports(fetched);
+    } catch (err) {
+      setReportsError(err instanceof Error ? err.message : 'Failed to load reports');
+    } finally {
+      setReportsLoading(false);
+    }
+  }, [selectedStudy]);
+
+  // Open the panel and refresh whenever the tab toggles open or the study
+  // selection changes while the panel is already open.
+  useEffect(() => {
+    if (reportsOpen) refreshReports();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reportsOpen, selectedStudy?.id]);
+
   const handleSaveReport = useCallback(
-    (report: Omit<SavedReport, 'id' | 'analyzedAt'>) => {
-      const saved: SavedReport = {
-        ...report,
-        id: crypto.randomUUID(),
-        analyzedAt: new Date().toISOString(),
+    async (report: Omit<SavedReport, 'id' | 'analyzedAt'>) => {
+      if (!selectedStudy) return;
+      const payload: CreateReportPayload = {
+        finding_id: selectedStudy.findings?.finding_id || undefined,
+        patient_name: report.patientName,
+        study_date: report.studyDate,
+        model: report.model,
+        pixel_spacing_mm: pixelSpacing,
+        hc_mm: report.hcMm,
+        ga_str: report.gaStr,
+        ga_weeks: report.gaWeeks,
+        trimester: report.trimester,
+        reliability: report.reliability,
+        confidence_label: report.confidenceLabel,
       };
       try {
-        const existing = JSON.parse(
-          localStorage.getItem('fetalscan_reports') ?? '[]'
-        ) as SavedReport[];
-        localStorage.setItem('fetalscan_reports', JSON.stringify([saved, ...existing]));
-      } catch {
-        // localStorage unavailable
+        const created = await createReport(selectedStudy.id, payload);
+        setReports(prev => [created, ...prev]);
+        setReportsOpen(true);
+      } catch (err) {
+        setReportsError(err instanceof Error ? err.message : 'Failed to save report');
+        setReportsOpen(true);
       }
-      setReportsOpen(true);
+    },
+    [selectedStudy, pixelSpacing]
+  );
+
+  const handleSignReport = useCallback(
+    async (reportId: string, signedBy: string, note: string | undefined) => {
+      try {
+        const signed = await signReport(reportId, {
+          signed_by: signedBy,
+          signoff_note: note || undefined,
+        });
+        setReports(prev => prev.map(r => (r.id === reportId ? signed : r)));
+      } catch (err) {
+        setReportsError(err instanceof Error ? err.message : 'Failed to sign report');
+      }
     },
     []
   );
@@ -350,7 +414,16 @@ export default function WorkstationView() {
         )}
       </div>
 
-      <ReportsTab isOpen={reportsOpen} onToggle={() => setReportsOpen(o => !o)} />
+      <ReportsTab
+        isOpen={reportsOpen}
+        onToggle={() => setReportsOpen(o => !o)}
+        reports={reports}
+        loading={reportsLoading}
+        error={reportsError}
+        onSign={handleSignReport}
+        onRefresh={refreshReports}
+        currentStudyName={selectedStudy?.patientName ?? ''}
+      />
     </div>
   );
 }

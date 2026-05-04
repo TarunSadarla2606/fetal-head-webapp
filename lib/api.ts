@@ -1,4 +1,12 @@
-import type { InferResponse, ModelVariant, OodReport } from './types';
+import type {
+  ApiAuditEntry,
+  ApiReport,
+  CreateReportPayload,
+  InferResponse,
+  ModelVariant,
+  OodReport,
+  SignReportPayload,
+} from './types';
 
 export const API_BASE = 'https://tarunsadarla2606-fetal-head-clinical-ai-api.hf.space';
 
@@ -85,4 +93,91 @@ export async function getOodReport(findingId: string, apiKey?: string): Promise<
   } catch {
     return null;
   }
+}
+
+// ─── Reports endpoints (Batch 6) ──────────────────────────────────────────────
+
+function authHeaders(apiKey?: string): HeadersInit {
+  const headers: Record<string, string> = {};
+  const key =
+    apiKey ?? (typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_API_KEY : '') ?? '';
+  if (key) headers['X-API-Key'] = key;
+  return headers;
+}
+
+async function jsonOrThrow<T>(res: Response, fallback: string): Promise<T> {
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: fallback }));
+    throw new Error((err as { detail?: string }).detail ?? fallback);
+  }
+  return res.json() as Promise<T>;
+}
+
+/** Generate a clinical report for a study. Calls Claude Haiku server-side
+ *  for the narrative paragraphs and persists the row in SQLite. */
+export async function createReport(
+  studyId: string,
+  payload: CreateReportPayload,
+  apiKey?: string,
+): Promise<ApiReport> {
+  const res = await fetch(`${API_BASE}/studies/${encodeURIComponent(studyId)}/reports`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(apiKey) },
+    body: JSON.stringify(payload),
+  });
+  return jsonOrThrow<ApiReport>(res, 'Failed to create report');
+}
+
+/** List all reports for a study, newest first. */
+export async function listReportsForStudy(
+  studyId: string,
+  apiKey?: string,
+): Promise<ApiReport[]> {
+  const res = await fetch(`${API_BASE}/studies/${encodeURIComponent(studyId)}/reports`, {
+    headers: authHeaders(apiKey),
+  });
+  if (!res.ok) return [];
+  return (await res.json()) as ApiReport[];
+}
+
+/** Fetch a single report by id. */
+export async function getReport(reportId: string, apiKey?: string): Promise<ApiReport | null> {
+  const res = await fetch(`${API_BASE}/reports/${encodeURIComponent(reportId)}`, {
+    headers: authHeaders(apiKey),
+  });
+  if (!res.ok) return null;
+  return (await res.json()) as ApiReport;
+}
+
+/** URL of the report PDF. Unsigned reports carry a DRAFT watermark; the
+ *  X-Report-Signed response header reflects sign-off state. */
+export function reportPdfUrl(reportId: string): string {
+  return `${API_BASE}/reports/${encodeURIComponent(reportId)}/pdf`;
+}
+
+/** Mark a report as signed-off. The server records IP / user-agent into the
+ *  audit log and re-renders the PDF without the DRAFT watermark on next fetch. */
+export async function signReport(
+  reportId: string,
+  payload: SignReportPayload,
+  apiKey?: string,
+): Promise<ApiReport> {
+  const res = await fetch(`${API_BASE}/reports/${encodeURIComponent(reportId)}/sign`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(apiKey) },
+    body: JSON.stringify(payload),
+  });
+  return jsonOrThrow<ApiReport>(res, 'Failed to sign report');
+}
+
+/** Audit log entries for the report (created / signed / …). */
+export async function getReportAudit(
+  reportId: string,
+  apiKey?: string,
+): Promise<ApiAuditEntry[]> {
+  const res = await fetch(`${API_BASE}/reports/${encodeURIComponent(reportId)}/audit`, {
+    headers: authHeaders(apiKey),
+  });
+  if (!res.ok) return [];
+  return (await res.json()) as ApiAuditEntry[];
 }
