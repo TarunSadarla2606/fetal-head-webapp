@@ -323,6 +323,13 @@ export default function WorkstationView() {
   const handleSaveReport = useCallback(
     async (report: Omit<SavedReport, 'id' | 'analyzedAt'>) => {
       if (!selectedStudy) return;
+      // Resolve pixel-spacing provenance: HC18 demo subjects come with a
+      // verified value from the dataset CSV; everything else is user-supplied.
+      // (DICOM-derived spacings only flow through the backend pipeline.)
+      const pixelSpacingSource: 'CSV' | 'USER' =
+        selectedStudy.isDemo && selectedStudy.demoPixelSpacingMm != null
+          ? 'CSV'
+          : 'USER';
       const payload: CreateReportPayload = {
         finding_id: selectedStudy.findings?.finding_id || undefined,
         patient_name: report.patientName,
@@ -330,6 +337,7 @@ export default function WorkstationView() {
         model: report.model,
         pixel_spacing_mm: pixelSpacing,
         pixel_spacing_dicom_derived: false,
+        pixel_spacing_source: pixelSpacingSource,
         hc_mm: report.hcMm,
         ga_str: report.gaStr,
         ga_weeks: report.gaWeeks,

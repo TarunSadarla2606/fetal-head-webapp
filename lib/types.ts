@@ -132,6 +132,7 @@ export interface ApiReport {
   us_approach: string | null;
   image_quality: string | null;
   pixel_spacing_dicom_derived: boolean;
+  pixel_spacing_source: 'DICOM' | 'CSV' | 'USER' | null;
   report_mode: 'template' | 'llm';
   accession_number: string | null;
   original_image_b64: string | null;
@@ -160,6 +161,7 @@ export interface CreateReportPayload {
   model: ModelVariant;
   pixel_spacing_mm?: number;
   pixel_spacing_dicom_derived?: boolean;
+  pixel_spacing_source?: 'DICOM' | 'CSV' | 'USER';
   // Override / supply fields when no finding_id (synthetic mode)
   hc_mm?: number;
   ga_str?: string;
