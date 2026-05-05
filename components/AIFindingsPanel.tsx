@@ -421,6 +421,42 @@ function ReadOnlyField({ label, value }: { label: string; value: string }) {
   );
 }
 
+function QualityBadge({
+  label,
+  score,
+  blur,
+}: {
+  label: 'poor' | 'suboptimal' | 'good' | 'excellent';
+  score: number;
+  blur: number;
+}) {
+  const palette: Record<typeof label, { bg: string; border: string; text: string }> = {
+    excellent: { bg: 'bg-emerald-500/10',  border: 'border-emerald-500/40', text: 'text-emerald-300' },
+    good:      { bg: 'bg-teal-500/10',     border: 'border-teal-500/40',    text: 'text-teal-300' },
+    suboptimal:{ bg: 'bg-amber-500/10',    border: 'border-amber-500/40',   text: 'text-amber-300' },
+    poor:      { bg: 'bg-red-500/10',      border: 'border-red-500/40',     text: 'text-red-300' },
+  };
+  const c = palette[label];
+  return (
+    <div
+      data-testid="quality-badge"
+      data-quality-label={label}
+      className={cn('flex items-start gap-2 p-2.5 rounded border', c.bg, c.border, c.text)}
+      title={`Composite quality score (blur + contrast + brightness + resolution). Raw Laplacian variance: ${blur.toFixed(0)}.`}
+    >
+      <Sparkles className="w-4 h-4 shrink-0 mt-0.5" />
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] font-bold uppercase tracking-wider">
+          Image quality · {label}
+        </p>
+        <p className="text-[10px] opacity-80 leading-tight mt-0.5">
+          Score {score.toFixed(2)} (0–1) · Laplacian var. {blur.toFixed(0)}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function AIFindingsPanel({ study, model, onSaveReport }: Props) {
   const f = study.findings;
   const isSynthetic = study.isSynthetic === true;
@@ -484,6 +520,13 @@ export default function AIFindingsPanel({ study, model, onSaveReport }: Props) {
         </div>
 
         <div className="flex-1 overflow-y-auto p-3 space-y-4">
+          {f?.validation?.quality_label && (
+            <QualityBadge
+              label={f.validation.quality_label}
+              score={f.validation.quality_score ?? 0}
+              blur={f.validation.blur_score ?? 0}
+            />
+          )}
           {f && f.ood_flag && (
             <div
               data-testid="ood-banner"

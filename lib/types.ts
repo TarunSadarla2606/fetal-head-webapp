@@ -4,6 +4,10 @@ export interface ValidationResult {
   valid: boolean;
   warnings: string[];
   checks: Record<string, boolean>;
+  // Batch 8.3 — composite image-quality score + label + raw blur metric
+  quality_score?: number;
+  quality_label?: 'poor' | 'suboptimal' | 'good' | 'excellent';
+  blur_score?: number;
 }
 
 export interface InferResponse {
