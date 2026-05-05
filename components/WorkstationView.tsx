@@ -70,16 +70,38 @@ export default function WorkstationView() {
       const files = await listDemoSubjects();
       if (files.length === 0) return;
 
+      // Curated patient names + study dates for the first 10 worklist
+      // entries — match the backend demo-seed (Batch 8.2) so the Reports
+      // tab pre-populates with realistic clinical context. Studies 11+
+      // fall back to the generic "Demo Subject N" pattern.
+      const SEED_NAMES: Array<{ name: string; date: string; flag?: string }> = [
+        { name: 'Sarah Thompson',  date: '2026-04-29' },
+        { name: 'Maria Santos',    date: '2026-04-28', flag: 'microcephaly' },
+        { name: 'Aisha Patel',     date: '2026-04-27' },
+        { name: 'Linda Chen',      date: '2026-04-26' },
+        { name: 'Jessica Brown',   date: '2026-04-25', flag: 'macrocephaly' },
+        { name: 'Emily Davis',     date: '2026-04-24' },
+        { name: 'Olivia Johnson',  date: '2026-04-23' },
+        { name: 'Priya Kumar',     date: '2026-04-22', flag: 'IUGR' },
+        { name: 'Hannah Garcia',   date: '2026-04-21' },
+        { name: 'Grace Williams',  date: '2026-04-20' },
+      ];
+
       const today = new Date();
-      const newStudies: Study[] = files.map((filename, i) => ({
-        id: `demo-${String(i + 1).padStart(3, '0')}`,
-        patientName: `Demo Subject ${i + 1}`,
-        studyDate: new Date(today.getTime() - i * 86400000).toISOString().split('T')[0],
-        status: 'pending' as const,
-        imageDataUrl: PLACEHOLDER_SVG_URL,
-        isDemo: true,
-        demoImagePath: filename,
-      }));
+      const newStudies: Study[] = files.map((filename, i) => {
+        const seed = i < SEED_NAMES.length ? SEED_NAMES[i] : null;
+        return {
+          id: `demo-${String(i + 1).padStart(3, '0')}`,
+          patientName: seed ? seed.name : `Demo Subject ${i + 1}`,
+          studyDate: seed
+            ? seed.date
+            : new Date(today.getTime() - i * 86400000).toISOString().split('T')[0],
+          status: 'pending' as const,
+          imageDataUrl: PLACEHOLDER_SVG_URL,
+          isDemo: true,
+          demoImagePath: filename,
+        };
+      });
 
       setStudies(newStudies);
       setSelectedId(newStudies[0].id);
