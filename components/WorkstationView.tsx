@@ -50,9 +50,45 @@ export default function WorkstationView() {
   const [apiModelCount, setApiModelCount] = useState(0);
   const [compareResults, setCompareResults] = useState<CompareResult[] | null>(null);
   const [combinedFormOpen, setCombinedFormOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const currentFileRef = useRef<File | null>(null);
 
   const selectedStudy = studies.find(s => s.id === selectedId) ?? studies[0]!;
+
+  // Keyboard shortcuts (Batch 8.4) — j/k navigate worklist, s opens
+  // Reports tab + sign-off if there's an unsigned report, ? toggles the
+  // shortcuts cheatsheet overlay. Suppressed while typing in inputs /
+  // textareas / contenteditable so the modal forms don't break.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement | null)?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+      if ((e.target as HTMLElement | null)?.isContentEditable) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      if (e.key === 'j' || e.key === 'k') {
+        e.preventDefault();
+        setSelectedId(prev => {
+          const idx = studies.findIndex(s => s.id === prev);
+          if (idx < 0) return prev;
+          const next = e.key === 'j' ? idx + 1 : idx - 1;
+          if (next < 0 || next >= studies.length) return prev;
+          setCompareResults(null);
+          return studies[next].id;
+        });
+      } else if (e.key === 's') {
+        e.preventDefault();
+        setReportsOpen(true);
+      } else if (e.key === '?' || (e.shiftKey && e.key === '/')) {
+        e.preventDefault();
+        setShortcutsOpen(o => !o);
+      } else if (e.key === 'Escape') {
+        setShortcutsOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [studies]);
 
   // Check API health on mount — drives the header status badge
   useEffect(() => {
@@ -471,6 +507,14 @@ export default function WorkstationView() {
           <span className="px-2 py-0.5 text-[10px] font-semibold bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded uppercase tracking-wider">
             Demo
           </span>
+          <button
+            onClick={() => setShortcutsOpen(o => !o)}
+            data-testid="shortcuts-help-button"
+            className="px-1.5 py-0.5 text-[10px] font-mono font-semibold border border-slate-700 hover:border-slate-500 text-slate-400 hover:text-slate-200 rounded transition-colors"
+            title="Keyboard shortcuts (?)"
+          >
+            ?
+          </button>
         </div>
       </header>
 
@@ -518,6 +562,50 @@ export default function WorkstationView() {
         onRefresh={refreshReports}
         currentStudyName={selectedStudy?.patientName ?? ''}
       />
+
+      {shortcutsOpen && (
+        <div
+          data-testid="shortcuts-overlay"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setShortcutsOpen(false)}
+        >
+          <div
+            className="w-[420px] bg-[#0f1623] border border-slate-700 rounded-lg shadow-2xl p-5 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-200">Keyboard shortcuts</h3>
+              <button
+                onClick={() => setShortcutsOpen(false)}
+                className="text-slate-500 hover:text-slate-300 text-xs"
+              >
+                Close
+              </button>
+            </div>
+            <div className="space-y-2 text-xs text-slate-300">
+              {[
+                ['j', 'Next study in worklist'],
+                ['k', 'Previous study in worklist'],
+                ['s', 'Open Reports panel'],
+                ['?', 'Toggle this cheatsheet'],
+                ['Esc', 'Dismiss this overlay'],
+              ].map(([k, label]) => (
+                <div key={k} className="flex items-center gap-3">
+                  <kbd className="px-1.5 py-0.5 font-mono text-[10px] bg-slate-800 border border-slate-700 rounded text-slate-200 min-w-[24px] text-center">
+                    {k}
+                  </kbd>
+                  <span className="text-slate-400">{label}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-[10px] text-slate-600 leading-tight">
+              Shortcuts are suppressed while you're typing in form fields.
+            </p>
+          </div>
+        </div>
+      )}
 
       {combinedFormOpen && compareResults && (
         <CombinedReportFormModal
