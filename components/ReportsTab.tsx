@@ -12,7 +12,9 @@ import {
   FileText,
   RefreshCw,
   ShieldCheck,
+  TrendingUp,
 } from 'lucide-react';
+import LongitudinalChartModal from './LongitudinalChartModal';
 
 interface Props {
   isOpen: boolean;
@@ -45,6 +47,11 @@ export default function ReportsTab({
   currentStudyName,
 }: Props) {
   const [dialog, setDialog] = useState<SignDialogState | null>(null);
+  const [growthFor, setGrowthFor] = useState<{
+    patientId: string;
+    patientName: string;
+    reportId: string;
+  } | null>(null);
 
   const submitSign = async () => {
     if (!dialog) return;
@@ -144,6 +151,14 @@ export default function ReportsTab({
                         error: null,
                       })
                     }
+                    onRequestGrowth={() => {
+                      if (!r.patient_id) return;
+                      setGrowthFor({
+                        patientId: r.patient_id,
+                        patientName: r.patient_name,
+                        reportId: r.id,
+                      });
+                    }}
                   />
                 ))}
               </tbody>
@@ -160,6 +175,15 @@ export default function ReportsTab({
           onSubmit={submitSign}
         />
       )}
+
+      {growthFor && (
+        <LongitudinalChartModal
+          patientId={growthFor.patientId}
+          patientName={growthFor.patientName}
+          highlightReportId={growthFor.reportId}
+          onClose={() => setGrowthFor(null)}
+        />
+      )}
     </div>
   );
 }
@@ -167,9 +191,11 @@ export default function ReportsTab({
 function ReportRow({
   report,
   onRequestSign,
+  onRequestGrowth,
 }: {
   report: ApiReport;
   onRequestSign: () => void;
+  onRequestGrowth: () => void;
 }) {
   const isSigned = report.is_signed;
   return (
@@ -243,6 +269,19 @@ function ReportRow({
         >
           <Download className="w-3 h-3" /> DICOM
         </a>
+        <button
+          onClick={onRequestGrowth}
+          disabled={!report.patient_id}
+          data-testid="report-growth-button"
+          className="inline-flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed mr-2"
+          title={
+            report.patient_id
+              ? 'Open longitudinal growth chart for this patient'
+              : 'Patient ID required to plot longitudinal growth chart'
+          }
+        >
+          <TrendingUp className="w-3 h-3" /> Growth
+        </button>
         {!isSigned && (
           <button
             onClick={onRequestSign}

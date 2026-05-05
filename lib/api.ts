@@ -165,6 +165,20 @@ export async function createCombinedReport(
   return jsonOrThrow<ApiReport>(res, 'Failed to create combined report');
 }
 
+/** All reports across studies for a single patient_id (oldest study_date
+ *  first). Drives the longitudinal growth-chart modal. */
+export async function listReportsForPatient(
+  patientId: string,
+  apiKey?: string,
+): Promise<ApiReport[]> {
+  const res = await fetch(
+    `${API_BASE}/patients/${encodeURIComponent(patientId)}/reports`,
+    { headers: authHeaders(apiKey) },
+  );
+  if (!res.ok) return [];
+  return (await res.json()) as ApiReport[];
+}
+
 /** List all reports for a study, newest first. */
 export async function listReportsForStudy(
   studyId: string,
