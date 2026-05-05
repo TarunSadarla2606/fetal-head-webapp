@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { Study, SavedReport, ModelVariant } from '@/lib/types';
+import type { Study, SavedReport, ModelVariant, InferResponse } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import {
   AlertTriangle,
@@ -14,6 +14,8 @@ import {
   Sparkles,
   TrendingUp,
   X,
+  FlaskRound,
+  CheckSquare,
 } from 'lucide-react';
 
 function reliabilityTier(value: number): { label: string; color: string; tier: 'high' | 'medium' | 'low' } {
@@ -49,6 +51,82 @@ interface ReportFormState {
   bpdMm: string; // text input — parsed to number on submit; empty string allowed
   priorBiometry: string; // free-text prior measurement summary
 }
+
+// ── Demo-mode scenarios ────────────────────────────────────────────────────
+// LMP dates are computed from the current date so GA matches each scenario.
+type DemoScenario = 'A' | 'B' | 'C';
+
+function daysAgoIso(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d.toISOString().split('T')[0];
+}
+
+function buildScenarioForm(s: DemoScenario, base: ReportFormState): ReportFormState {
+  // Each scenario fills realistic, internally-consistent clinical data.
+  // GA targets match the LMP minus today, so the AI HC reading should
+  // plausibly correspond to the indication.
+  switch (s) {
+    case 'A':  // Normal 2nd-trimester anatomy survey, ~19–20 weeks
+      return {
+        ...base,
+        patientName: 'Demo Patient A',
+        patientId: 'HC18-DEMO-001',
+        patientDob: daysAgoIso(28 * 365 + 120),  // ~28 yo
+        lmp: daysAgoIso(137),                    // ~19w4d
+        referringPhysician: 'Dr. Sarah Chen, OB/GYN',
+        orderingFacility: 'City General Hospital',
+        sonographerName: 'J. Park, RDMS',
+        clinicalIndication: 'Routine fetal anatomy survey at ~20 weeks. No prior complications.',
+        usApproach: 'transabdominal',
+        imageQuality: 'optimal',
+        fetalPresentation: 'cephalic',
+        bpdMm: '',
+        priorBiometry: '',
+      };
+    case 'B':  // LMP-size discordance, ~14–15 weeks, suspect FGR
+      return {
+        ...base,
+        patientName: 'Demo Patient B',
+        patientId: 'HC18-DEMO-002',
+        patientDob: daysAgoIso(34 * 365 + 200),  // ~34 yo
+        lmp: daysAgoIso(104),                    // ~14w6d
+        referringPhysician: 'Dr. James Park, MFM',
+        orderingFacility: 'University Medical Center',
+        sonographerName: 'M. Garcia, RDMS',
+        clinicalIndication: 'LMP-size discordance — rule out fetal growth restriction. Repeat dating scan.',
+        usApproach: 'transabdominal',
+        imageQuality: 'suboptimal',
+        fetalPresentation: 'cephalic',
+        bpdMm: '',
+        priorBiometry: '',
+      };
+    case 'C':  // IUGR / BPD-HC mismatch, ~24 weeks
+      return {
+        ...base,
+        patientName: 'Demo Patient C',
+        patientId: 'HC18-DEMO-003',
+        patientDob: daysAgoIso(31 * 365 + 60),
+        lmp: daysAgoIso(168),                    // 24w0d
+        referringPhysician: 'Dr. Maria Santos, MFM',
+        orderingFacility: 'Perinatology Associates',
+        sonographerName: 'K. Liu, RDMS',
+        clinicalIndication:
+          'Suspected IUGR — detailed biometry. HC/BPD mismatch evaluation. Doppler studies pending.',
+        usApproach: 'transabdominal',
+        imageQuality: 'suboptimal',
+        fetalPresentation: 'cephalic',
+        bpdMm: '52.0',                           // lags HC → mismatch flag
+        priorBiometry: 'HC 195 mm @ ' + daysAgoIso(21) + ' (~22w 4d)',
+      };
+  }
+}
+
+const SCENARIO_INFO: Record<DemoScenario, { title: string; subtitle: string }> = {
+  A: { title: 'Scenario A',  subtitle: 'Normal · 2nd trimester anatomy' },
+  B: { title: 'Scenario B',  subtitle: 'LMP discordance · suspect FGR' },
+  C: { title: 'Scenario C',  subtitle: 'IUGR · BPD/HC mismatch' },
+};
 
 function Metric({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
@@ -93,15 +171,29 @@ function formatTime(iso: string): string {
 
 function ReportFormModal({
   initial,
+  findings,
+  modelVariant,
   onSubmit,
   onClose,
 }: {
   initial: ReportFormState;
+  findings?: InferResponse;
+  modelVariant: ModelVariant;
   onSubmit: (s: ReportFormState) => void;
   onClose: () => void;
 }) {
   const [form, setForm] = useState<ReportFormState>(initial);
+  const [demoScenario, setDemoScenario] = useState<DemoScenario | null>(null);
   const set = (k: keyof ReportFormState, v: string) => setForm(f => ({ ...f, [k]: v }));
+
+  const applyScenario = (s: DemoScenario) => {
+    setForm(buildScenarioForm(s, initial));
+    setDemoScenario(s);
+  };
+  const exitDemoMode = () => {
+    setForm(initial);
+    setDemoScenario(null);
+  };
 
   return (
     <div
@@ -109,11 +201,16 @@ function ReportFormModal({
       role="dialog"
       aria-modal="true"
     >
-      <div className="w-[520px] max-h-[90vh] bg-[#0f1623] border border-slate-700 rounded-lg shadow-2xl flex flex-col">
+      <div className="w-[600px] max-h-[90vh] bg-[#0f1623] border border-slate-700 rounded-lg shadow-2xl flex flex-col">
         {/* Header */}
         <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-800 shrink-0">
           <FileText className="w-4 h-4 text-[#0D7680]" />
           <h3 className="text-sm font-semibold text-slate-200">Generate Clinical Report</h3>
+          {demoScenario && (
+            <span className="px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider bg-amber-500/15 border border-amber-500/40 text-amber-300 rounded">
+              Demo Mode · {demoScenario}
+            </span>
+          )}
           <button onClick={onClose} className="ml-auto text-slate-500 hover:text-slate-300">
             <X className="w-4 h-4" />
           </button>
@@ -157,6 +254,70 @@ function ReportFormModal({
                 : 'Rule-based template with trimester-aware clinical language. Always available.'}
             </p>
           </div>
+
+          {/* ── Demo Mode (scenario presets) ─────────────────────── */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
+                Demo Mode
+              </p>
+              {demoScenario && (
+                <button
+                  onClick={exitDemoMode}
+                  className="flex items-center gap-1 text-[10px] text-amber-400/80 hover:text-amber-300 font-semibold"
+                >
+                  <X className="w-3 h-3" /> Exit Demo Mode
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {(['A', 'B', 'C'] as DemoScenario[]).map(s => {
+                const info = SCENARIO_INFO[s];
+                const active = demoScenario === s;
+                return (
+                  <button
+                    key={s}
+                    onClick={() => applyScenario(s)}
+                    className={cn(
+                      'flex flex-col items-start gap-0.5 p-2 rounded text-left border transition-colors',
+                      active
+                        ? 'bg-amber-500/10 border-amber-500/50 text-amber-200'
+                        : 'border-slate-700 text-slate-400 hover:border-slate-600 hover:text-slate-200'
+                    )}
+                  >
+                    <div className="flex items-center gap-1 text-xs font-semibold">
+                      <FlaskRound className="w-3 h-3" /> {info.title}
+                    </div>
+                    <span className="text-[10px] leading-tight opacity-80">{info.subtitle}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[10px] text-slate-600 mt-1">
+              {demoScenario
+                ? 'Fields below auto-filled with realistic clinical data — still editable.'
+                : 'Pick a scenario to auto-fill the form with realistic clinical context.'}
+            </p>
+          </div>
+
+          {/* ── AI Analysis Results (read-only autofill) ─────────── */}
+          {findings && findings.hc_mm != null && (
+            <div className="bg-emerald-500/5 border border-emerald-500/30 rounded p-3 space-y-2">
+              <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-semibold text-emerald-400">
+                <CheckSquare className="w-3 h-3" /> AI Analysis Results · auto-filled
+              </div>
+              <div className="grid grid-cols-4 gap-2">
+                <ReadOnlyField label="HC (mm)"      value={findings.hc_mm.toFixed(1)} />
+                <ReadOnlyField label="GA"           value={findings.ga_str ?? '—'} />
+                <ReadOnlyField label="Confidence"   value={findings.confidence_label} />
+                <ReadOnlyField label="Reliability"  value={`${Math.round(findings.reliability * 100)}%`} />
+              </div>
+              <p className="text-[9px] text-slate-500 leading-tight">
+                Source model: <span className="font-semibold text-slate-300">{modelVariant}</span> ·
+                Elapsed {findings.elapsed_ms.toFixed(0)} ms · trimester {findings.trimester}
+              </p>
+            </div>
+          )}
 
           {/* ── Patient Information ──────────────────────────────── */}
           <div>
@@ -311,6 +472,15 @@ function Field({
         placeholder={placeholder}
         className="mt-1 w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-[#0D7680]"
       />
+    </div>
+  );
+}
+
+function ReadOnlyField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-[9px] uppercase tracking-wider text-slate-500 font-semibold">{label}</p>
+      <p className="text-xs font-mono font-semibold text-slate-100 mt-0.5">{value}</p>
     </div>
   );
 }
@@ -539,6 +709,8 @@ export default function AIFindingsPanel({ study, model, onSaveReport }: Props) {
       {showForm && (
         <ReportFormModal
           initial={formInitial}
+          findings={f ?? undefined}
+          modelVariant={model}
           onSubmit={handleSubmit}
           onClose={() => setShowForm(false)}
         />
