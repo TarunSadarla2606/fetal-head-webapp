@@ -18,6 +18,7 @@ import {
   API_BASE,
   createReport,
   getApiHealth,
+  getDemoMetadata,
   listDemoSubjects,
   listReportsForStudy,
   runInference,
@@ -80,21 +81,33 @@ export default function WorkstationView() {
       setStudies(newStudies);
       setSelectedId(newStudies[0].id);
 
-      // Load actual images asynchronously so the worklist populates progressively
+      // Load images and HC18 metadata (pixel spacing + reference HC) progressively
       for (const study of newStudies) {
         try {
-          const res = await fetch(`${API_BASE}/demo/${encodeURIComponent(study.demoImagePath!)}`);
-          if (!res.ok) continue;
-          const blob = await res.blob();
-          const dataUrl = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = e => resolve(e.target!.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-          });
-          setStudies(prev =>
-            prev.map(s => s.id === study.id ? { ...s, imageDataUrl: dataUrl } : s)
-          );
+          const [imgRes, meta] = await Promise.all([
+            fetch(`${API_BASE}/demo/${encodeURIComponent(study.demoImagePath!)}`),
+            getDemoMetadata(study.demoImagePath!),
+          ]);
+          const updates: Partial<Study> = {};
+          if (meta) {
+            updates.demoPixelSpacingMm = meta.pixel_spacing_mm;
+            updates.hcReferenceMm = meta.hc_reference_mm ?? undefined;
+          }
+          if (imgRes.ok) {
+            const blob = await imgRes.blob();
+            const dataUrl = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = e => resolve(e.target!.result as string);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+            updates.imageDataUrl = dataUrl;
+          }
+          if (Object.keys(updates).length > 0) {
+            setStudies(prev =>
+              prev.map(s => s.id === study.id ? { ...s, ...updates } : s)
+            );
+          }
         } catch {
           // keep placeholder for this study
         }
@@ -102,6 +115,13 @@ export default function WorkstationView() {
     }
     loadDemoStudies();
   }, []);
+
+  // Auto-apply the HC18 pixel spacing whenever the selected demo study changes.
+  useEffect(() => {
+    if (selectedStudy?.isDemo && selectedStudy.demoPixelSpacingMm != null) {
+      setPixelSpacing(selectedStudy.demoPixelSpacingMm);
+    }
+  }, [selectedStudy?.id, selectedStudy?.demoPixelSpacingMm]);
 
   const handleImageLoad = useCallback((studyId: string, imageDataUrl: string) => {
     setStudies(prev =>

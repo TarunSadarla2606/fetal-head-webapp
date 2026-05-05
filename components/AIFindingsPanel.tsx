@@ -477,6 +477,40 @@ export default function AIFindingsPanel({ study, model, onSaveReport }: Props) {
                 />
               </div>
 
+              {study.isDemo && study.hcReferenceMm != null && f.hc_mm != null && !isSynthetic && (
+                <div className="rounded border border-slate-700/60 bg-slate-800/40 px-3 py-2 space-y-1">
+                  <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-500">
+                    HC18 Dataset Validation
+                  </p>
+                  <div className="flex items-baseline justify-between text-xs">
+                    <span className="text-slate-400">Reference</span>
+                    <span className="font-mono text-slate-200">{study.hcReferenceMm.toFixed(1)} mm</span>
+                  </div>
+                  <div className="flex items-baseline justify-between text-xs">
+                    <span className="text-slate-400">AI prediction</span>
+                    <span className="font-mono text-slate-200">{f.hc_mm.toFixed(1)} mm</span>
+                  </div>
+                  <div className="flex items-baseline justify-between text-xs border-t border-slate-700/50 pt-1 mt-1">
+                    <span className="text-slate-400">Δ deviation</span>
+                    <span className={cn(
+                      'font-mono font-semibold',
+                      Math.abs(f.hc_mm - study.hcReferenceMm) <= 3
+                        ? 'text-emerald-400'
+                        : 'text-amber-400'
+                    )}>
+                      {(f.hc_mm - study.hcReferenceMm > 0 ? '+' : '')}
+                      {(f.hc_mm - study.hcReferenceMm).toFixed(1)} mm
+                    </span>
+                  </div>
+                  <p className="text-[9px] text-slate-600 leading-tight pt-0.5">
+                    ISUOG threshold ±3 mm ·{' '}
+                    {Math.abs(f.hc_mm - study.hcReferenceMm) <= 3
+                      ? '✓ within threshold'
+                      : '⚠ exceeds threshold'}
+                  </p>
+                </div>
+              )}
+
               <ReliabilityBar value={f.reliability} />
 
               <div className={cn('text-[10px] text-slate-600 flex justify-between')}>

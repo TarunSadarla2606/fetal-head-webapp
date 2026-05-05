@@ -69,6 +69,22 @@ export async function listDemoSubjects(): Promise<string[]> {
   }
 }
 
+export interface DemoMetadata {
+  pixel_spacing_mm: number;
+  hc_reference_mm: number | null;
+}
+
+/** Fetch pixel spacing + HC reference from the HC18 CSV for one demo subject. */
+export async function getDemoMetadata(filename: string): Promise<DemoMetadata | null> {
+  try {
+    const res = await fetch(`${API_BASE}/demo/${encodeURIComponent(filename)}/metadata`);
+    if (!res.ok) return null;
+    return res.json() as Promise<DemoMetadata>;
+  } catch {
+    return null;
+  }
+}
+
 // XAI endpoint helpers (Batch 5)
 
 /** URL of the GradCAM++ overlay PNG for a finding. Suitable for `<img src>`. */

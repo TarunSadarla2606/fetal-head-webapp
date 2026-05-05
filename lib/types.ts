@@ -49,6 +49,10 @@ export interface Study {
   errorMessage?: string;
   analyzedAt?: string;
   isSynthetic?: boolean;
+  /** Pixel spacing from HC18 CSV — auto-applied when this demo is selected. */
+  demoPixelSpacingMm?: number;
+  /** Ground-truth HC from HC18 CSV — shown alongside AI prediction for demo subjects. */
+  hcReferenceMm?: number;
 }
 
 export interface CompareResult {
