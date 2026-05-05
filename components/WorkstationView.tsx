@@ -26,7 +26,6 @@ import {
 } from '@/lib/api';
 import { INITIAL_STUDIES, getDemoFindings, getDemoOverlayImage, PLACEHOLDER_SVG_URL } from '@/lib/demo-data';
 
-const ALL_VARIANTS: ModelVariant[] = ['phase0', 'phase2', 'phase4a', 'phase4b'];
 const VARIANT_LABEL: Record<ModelVariant, string> = {
   phase0:  'Standard · Single Frame',
   phase2:  'Standard · Cine Loop',
@@ -246,10 +245,10 @@ export default function WorkstationView() {
     [selectedId, selectedStudy, pixelSpacing, threshold, model]
   );
 
-  const handleCompareAll = useCallback(async () => {
-    // Initialise all four slots to 'analyzing'
+  const handleCompare = useCallback(async (variants: ModelVariant[]) => {
+    // Initialise one slot per selected variant
     setCompareResults(
-      ALL_VARIANTS.map(v => ({ variant: v, label: VARIANT_LABEL[v], status: 'analyzing' }))
+      variants.map(v => ({ variant: v, label: VARIANT_LABEL[v], status: 'analyzing' }))
     );
 
     // Resolve the image file once — fetch from API for demo, use uploaded file otherwise
@@ -268,15 +267,17 @@ export default function WorkstationView() {
 
     if (!imageFile) {
       setCompareResults(
-        ALL_VARIANTS.map(v => ({ variant: v, label: VARIANT_LABEL[v], status: 'error', error: 'Could not load image' }))
+        variants.map(v => ({ variant: v, label: VARIANT_LABEL[v], status: 'error', error: 'Could not load image' }))
       );
       return;
     }
 
     const file = imageFile;
-    // Fire all 4 in parallel; update each slot as it completes
+    // Fire all selected variants in parallel; update each slot as it completes.
+    // Grad-CAM PNGs are loaded by the browser directly from the URL, so no extra
+    // fetch is needed here — the finding_id returned by /infer is enough.
     await Promise.all(
-      ALL_VARIANTS.map(async variant => {
+      variants.map(async variant => {
         try {
           const findings = await runInference({
             image: file,
@@ -450,7 +451,7 @@ export default function WorkstationView() {
               onThresholdChange={setThreshold}
               onImageLoad={handleImageLoad}
               onAnalyze={handleAnalyze}
-              onCompareAll={handleCompareAll}
+              onCompare={handleCompare}
               onFileChange={handleFileChange}
               isDemo={selectedStudy.isDemo ?? false}
             />
