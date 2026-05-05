@@ -3,7 +3,10 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import type { Study, ModelVariant } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { Upload, Play, Loader2, CheckCircle2, Info, FlaskConical } from 'lucide-react';
+import { Upload, Play, Loader2, CheckCircle2, Info, FlaskConical, LayoutGrid, Image as ImageIcon, Sparkles, ChevronDown } from 'lucide-react';
+import XAIPanel from './XAIPanel';
+
+type ViewerTab = 'image' | 'xai';
 
 const MODEL_OPTIONS: { value: ModelVariant; label: string }[] = [
   { value: 'phase0',  label: 'Standard · Single Frame' },
@@ -13,6 +16,7 @@ const MODEL_OPTIONS: { value: ModelVariant; label: string }[] = [
 ];
 
 const TEMPORAL_MODELS = new Set<ModelVariant>(['phase2', 'phase4b']);
+const ALL_VARIANTS: ModelVariant[] = ['phase0', 'phase4a', 'phase2', 'phase4b'];
 
 interface Props {
   study: Study;
@@ -20,10 +24,13 @@ interface Props {
   onModelChange: (m: ModelVariant) => void;
   pixelSpacing: number;
   onPixelSpacingChange: (v: number) => void;
+  pixelSpacingSource?: 'CSV' | 'USER';
   threshold: number;
   onThresholdChange: (v: number) => void;
   onImageLoad: (studyId: string, dataUrl: string) => void;
   onAnalyze: (file: File | null) => void;
+  onCompare: (variants: ModelVariant[]) => void;
+  onFileChange: (file: File | null) => void;
   isDemo: boolean;
 }
 
@@ -33,16 +40,67 @@ export default function StudyViewer({
   onModelChange,
   pixelSpacing,
   onPixelSpacingChange,
+  pixelSpacingSource = 'USER',
   threshold,
   onThresholdChange,
   onImageLoad,
   onAnalyze,
+  onCompare,
+  onFileChange,
   isDemo,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const analysisStartRef = useRef<number | null>(null);
   const [currentFile, setCurrentFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [elapsedSec, setElapsedSec] = useState(0);
+  const [tab, setTab] = useState<ViewerTab>('image');
+  // Compare-models dropdown — start with all 4 selected so the existing "all"
+  // workflow is one click away.
+  const [compareMenuOpen, setCompareMenuOpen] = useState(false);
+  const [compareSelection, setCompareSelection] = useState<Set<ModelVariant>>(
+    () => new Set(ALL_VARIANTS),
+  );
+  const compareMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close the picker when clicking outside.
+  useEffect(() => {
+    if (!compareMenuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (compareMenuRef.current && !compareMenuRef.current.contains(e.target as Node)) {
+        setCompareMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [compareMenuOpen]);
+
+  const toggleCompareVariant = (v: ModelVariant) => {
+    setCompareSelection(prev => {
+      const next = new Set(prev);
+      if (next.has(v)) {
+        // Enforce minimum of 2 selected variants
+        if (next.size <= 2) return prev;
+        next.delete(v);
+      } else {
+        next.add(v);
+      }
+      return next;
+    });
+  };
+
+  const handleRunCompare = () => {
+    const variants = ALL_VARIANTS.filter(v => compareSelection.has(v));
+    setCompareMenuOpen(false);
+    if (variants.length >= 2) onCompare(variants);
+  };
+
+  // Reset to image tab whenever a new analysis starts or the study switches —
+  // an XAI overlay tied to a stale finding_id would 404 against the API.
+  useEffect(() => {
+    if (study.status === 'analyzing' || study.status === 'pending') setTab('image');
+  }, [study.id, study.status]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -65,10 +123,27 @@ export default function StudyViewer({
     img.src = src;
   }, [study.imageDataUrl, study.findings?.overlay_b64]);
 
+  // Elapsed timer: counts up while analysis is running
+  useEffect(() => {
+    if (study.status !== 'analyzing') {
+      setElapsedSec(0);
+      analysisStartRef.current = null;
+      return;
+    }
+    analysisStartRef.current = Date.now();
+    const id = setInterval(() => {
+      if (analysisStartRef.current !== null) {
+        setElapsedSec((Date.now() - analysisStartRef.current) / 1000);
+      }
+    }, 100);
+    return () => clearInterval(id);
+  }, [study.status]);
+
   const loadFile = useCallback(
     (file: File) => {
       if (!file.type.startsWith('image/')) return;
       setCurrentFile(file);
+      onFileChange(file);
       const reader = new FileReader();
       reader.onload = e => {
         const result = e.target?.result;
@@ -76,7 +151,7 @@ export default function StudyViewer({
       };
       reader.readAsDataURL(file);
     },
-    [study.id, onImageLoad]
+    [study.id, onImageLoad, onFileChange]
   );
 
   const handleDrop = useCallback(
@@ -127,7 +202,9 @@ export default function StudyViewer({
         )}
 
         <label className="flex items-center gap-1 text-xs text-slate-500">
-          px spacing
+          <span title="HC18 dataset range: 0.052–0.326 mm/pixel. Incorrect spacing produces wrong HC measurement.">
+            px spacing
+          </span>
           <input
             type="number"
             value={pixelSpacing}
@@ -139,6 +216,19 @@ export default function StudyViewer({
           />
           mm/px
         </label>
+        {pixelSpacingSource === 'USER' && (
+          <span
+            className="text-[9px] text-amber-400/80 flex items-center gap-0.5"
+            title="Pixel spacing not auto-detected from DICOM metadata. Verify value against your ultrasound system. Incorrect spacing produces wrong HC measurement."
+          >
+            <Info className="w-2.5 h-2.5" /> estimated — verify
+          </span>
+        )}
+        {pixelSpacingSource === 'CSV' && (
+          <span className="text-[9px] text-teal-400/80 flex items-center gap-0.5">
+            ✓ CSV verified
+          </span>
+        )}
 
         <label className="flex items-center gap-1 text-xs text-slate-500">
           threshold
@@ -153,24 +243,129 @@ export default function StudyViewer({
           />
         </label>
 
-        <button
-          onClick={() => { if (!isAnalyzing) onAnalyze(isDemo ? null : currentFile); }}
-          disabled={!canRun}
-          className={cn(
-            'ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded transition-colors',
-            canRun
-              ? 'bg-[#0D7680] hover:bg-[#0a5f67] text-white'
-              : 'bg-slate-800 text-slate-600 cursor-not-allowed'
-          )}
-        >
-          {isAnalyzing ? (
-            <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Analyzing…</>
-          ) : (
-            <><Play className="w-3.5 h-3.5" /> Run AI</>
-          )}
-        </button>
+        <div className="ml-auto flex items-center gap-2">
+          <div className="relative" ref={compareMenuRef}>
+            <button
+              onClick={() => { if (canRun) setCompareMenuOpen(o => !o); }}
+              disabled={!canRun}
+              title="Pick 2–4 models to run in parallel on this image (with Grad-CAM)"
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded transition-colors',
+                canRun
+                  ? 'bg-slate-700 hover:bg-slate-600 text-slate-200'
+                  : 'bg-slate-800 text-slate-600 cursor-not-allowed'
+              )}
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              Compare Models · {compareSelection.size}
+              <ChevronDown className={cn('w-3 h-3 transition-transform', compareMenuOpen && 'rotate-180')} />
+            </button>
+
+            {compareMenuOpen && (
+              <div className="absolute right-0 mt-1 w-72 z-30 bg-[#0f1623] border border-slate-700 rounded-lg shadow-2xl p-2">
+                <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
+                  Select 2–4 models
+                </div>
+                {MODEL_OPTIONS.map(opt => {
+                  const checked = compareSelection.has(opt.value);
+                  const isLastSelected = checked && compareSelection.size <= 2;
+                  return (
+                    <label
+                      key={opt.value}
+                      className={cn(
+                        'flex items-center gap-2 px-2 py-1.5 rounded text-xs cursor-pointer transition-colors',
+                        isLastSelected ? 'cursor-not-allowed opacity-70' : 'hover:bg-slate-800',
+                      )}
+                      title={isLastSelected ? 'At least 2 models required' : undefined}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={isLastSelected}
+                        onChange={() => toggleCompareVariant(opt.value)}
+                        className="accent-[#0D7680]"
+                      />
+                      <span className={cn('flex-1', checked ? 'text-slate-200' : 'text-slate-400')}>
+                        {opt.label}
+                      </span>
+                      {TEMPORAL_MODELS.has(opt.value) && (
+                        <span className="text-[9px] text-amber-400/70">cine</span>
+                      )}
+                    </label>
+                  );
+                })}
+                <div className="flex items-center justify-between gap-2 px-2 pt-2 mt-1 border-t border-slate-800">
+                  <span className="text-[10px] text-slate-500">
+                    {compareSelection.size} selected
+                  </span>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => setCompareMenuOpen(false)}
+                      className="px-2 py-1 text-[11px] text-slate-400 hover:text-slate-200"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleRunCompare}
+                      disabled={compareSelection.size < 2}
+                      className="px-3 py-1 text-[11px] font-semibold bg-[#0D7680] hover:bg-[#0a5f67] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded"
+                    >
+                      Run Comparison
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={() => { if (!isAnalyzing) onAnalyze(isDemo ? null : currentFile); }}
+            disabled={!canRun}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded transition-colors',
+              canRun
+                ? 'bg-[#0D7680] hover:bg-[#0a5f67] text-white'
+                : 'bg-slate-800 text-slate-600 cursor-not-allowed'
+            )}
+          >
+            {isAnalyzing ? (
+              <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Analyzing… {elapsedSec.toFixed(1)}s</>
+            ) : (
+              <><Play className="w-3.5 h-3.5" /> Run AI</>
+            )}
+          </button>
+        </div>
       </div>
 
+      {/* Tab switcher: Image View ‖ XAI. XAI is enabled only when we have a
+          real (non-synthetic) finding_id from a successful /infer call. */}
+      <div className="flex items-center gap-1 px-3 py-1 bg-[#0b1018] border-b border-slate-800/80 shrink-0">
+        <TabButton
+          active={tab === 'image'}
+          onClick={() => setTab('image')}
+          icon={<ImageIcon className="w-3 h-3" />}
+          label="Image View"
+        />
+        <TabButton
+          active={tab === 'xai'}
+          onClick={() => setTab('xai')}
+          icon={<Sparkles className="w-3 h-3" />}
+          label="XAI Explanations"
+          disabled={!isDone || isSynthetic || !study.findings?.finding_id}
+          disabledReason={
+            !isDone
+              ? 'Run AI to generate explanations'
+              : isSynthetic
+                ? 'XAI unavailable in synthetic mode'
+                : 'No finding_id'
+          }
+          testId="xai-tab"
+        />
+      </div>
+
+      {tab === 'xai' && isDone && !isSynthetic && study.findings?.finding_id ? (
+        <XAIPanel findingId={study.findings.finding_id} />
+      ) : (
       <div
         className="flex-1 overflow-auto flex items-center justify-center p-4 relative"
         onDrop={handleDrop}
@@ -233,8 +428,45 @@ export default function StudyViewer({
           </div>
         )}
       </div>
+      )}
 
       <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
     </div>
+  );
+}
+
+function TabButton({
+  active,
+  onClick,
+  icon,
+  label,
+  disabled,
+  disabledReason,
+  testId,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+  disabled?: boolean;
+  disabledReason?: string;
+  testId?: string;
+}) {
+  return (
+    <button
+      data-testid={testId}
+      onClick={() => { if (!disabled) onClick(); }}
+      title={disabled ? disabledReason : label}
+      className={cn(
+        'flex items-center gap-1.5 px-3 py-1 text-[11px] font-semibold rounded transition-colors',
+        disabled
+          ? 'text-slate-600 cursor-not-allowed'
+          : active
+            ? 'bg-[#0D7680]/15 text-[#0D7680] border border-[#0D7680]/40'
+            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+      )}
+    >
+      {icon} {label}
+    </button>
   );
 }

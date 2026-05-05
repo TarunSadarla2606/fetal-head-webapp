@@ -79,6 +79,7 @@ const DEMO_FINDINGS: Record<string, InferResponse> = {
     ood_reasons: [],
     mask_b64: '',
     overlay_b64: '',
+    finding_id: '',
   },
   'demo-002': {
     hc_mm: 258.7,
@@ -96,6 +97,7 @@ const DEMO_FINDINGS: Record<string, InferResponse> = {
     ood_reasons: [],
     mask_b64: '',
     overlay_b64: '',
+    finding_id: '',
   },
   'demo-003': {
     hc_mm: 306.2,
@@ -117,6 +119,7 @@ const DEMO_FINDINGS: Record<string, InferResponse> = {
     ood_reasons: [],
     mask_b64: '',
     overlay_b64: '',
+    finding_id: '',
   },
 };
 
