@@ -443,6 +443,9 @@ export default function WorkstationView() {
               onModelChange={setModel}
               pixelSpacing={pixelSpacing}
               onPixelSpacingChange={setPixelSpacing}
+              pixelSpacingSource={
+                selectedStudy.isDemo && selectedStudy.demoPixelSpacingMm != null ? 'CSV' : 'USER'
+              }
               threshold={threshold}
               onThresholdChange={setThreshold}
               onImageLoad={handleImageLoad}

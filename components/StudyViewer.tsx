@@ -23,6 +23,7 @@ interface Props {
   onModelChange: (m: ModelVariant) => void;
   pixelSpacing: number;
   onPixelSpacingChange: (v: number) => void;
+  pixelSpacingSource?: 'CSV' | 'USER';
   threshold: number;
   onThresholdChange: (v: number) => void;
   onImageLoad: (studyId: string, dataUrl: string) => void;
@@ -38,6 +39,7 @@ export default function StudyViewer({
   onModelChange,
   pixelSpacing,
   onPixelSpacingChange,
+  pixelSpacingSource = 'USER',
   threshold,
   onThresholdChange,
   onImageLoad,
@@ -174,12 +176,19 @@ export default function StudyViewer({
           />
           mm/px
         </label>
-        <span
-          className="text-[9px] text-amber-400/80 flex items-center gap-0.5"
-          title="Pixel spacing not auto-detected from DICOM metadata. Verify value against your ultrasound system. Incorrect spacing produces wrong HC measurement."
-        >
-          <Info className="w-2.5 h-2.5" /> estimated — verify
-        </span>
+        {pixelSpacingSource === 'USER' && (
+          <span
+            className="text-[9px] text-amber-400/80 flex items-center gap-0.5"
+            title="Pixel spacing not auto-detected from DICOM metadata. Verify value against your ultrasound system. Incorrect spacing produces wrong HC measurement."
+          >
+            <Info className="w-2.5 h-2.5" /> estimated — verify
+          </span>
+        )}
+        {pixelSpacingSource === 'CSV' && (
+          <span className="text-[9px] text-teal-400/80 flex items-center gap-0.5">
+            ✓ CSV verified
+          </span>
+        )}
 
         <label className="flex items-center gap-1 text-xs text-slate-500">
           threshold
