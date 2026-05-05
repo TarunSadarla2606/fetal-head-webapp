@@ -328,6 +328,7 @@ export default function WorkstationView() {
         report_mode: report.reportMode ?? 'template',
         fetal_presentation: report.fetalPresentation,
         bpd_mm: report.bpdMm,
+        prior_biometry: report.priorBiometry,
       };
       try {
         const created = await createReport(selectedStudy.id, payload);

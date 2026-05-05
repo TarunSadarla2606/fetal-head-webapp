@@ -84,6 +84,7 @@ export interface SavedReport {
   reportMode?: 'template' | 'llm';
   fetalPresentation?: FetalPresentation;
   bpdMm?: number;
+  priorBiometry?: string;
 }
 
 export type FetalPresentation = 'cephalic' | 'breech' | 'transverse' | 'not_assessed';
@@ -134,6 +135,7 @@ export interface ApiReport {
   gradcam_image_b64: string | null;
   fetal_presentation: string | null;
   bpd_mm: number | null;
+  prior_biometry: string | null;
 }
 
 export interface ApiAuditEntry {
@@ -175,6 +177,7 @@ export interface CreateReportPayload {
   report_mode?: 'template' | 'llm';
   fetal_presentation?: FetalPresentation;
   bpd_mm?: number;
+  prior_biometry?: string;
 }
 
 export interface SignReportPayload {

@@ -47,6 +47,7 @@ interface ReportFormState {
   // v3.1: optional secondary biometric + fetal lie
   fetalPresentation: 'cephalic' | 'breech' | 'transverse' | 'not_assessed';
   bpdMm: string; // text input — parsed to number on submit; empty string allowed
+  priorBiometry: string; // free-text prior measurement summary
 }
 
 function Metric({ label, value, sub }: { label: string; value: string; sub?: string }) {
@@ -251,6 +252,18 @@ function ReportFormModal({
                   className="mt-1 w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-[#0D7680]"
                 />
               </div>
+              <div className="col-span-3">
+                <label className="text-[10px] text-slate-500 font-semibold">
+                  Prior biometry — optional
+                </label>
+                <input
+                  type="text"
+                  value={form.priorBiometry}
+                  onChange={e => set('priorBiometry', e.target.value)}
+                  placeholder="e.g. HC 198 mm @ 2024-12-01 (22w 3d)"
+                  className="mt-1 w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-[#0D7680]"
+                />
+              </div>
             </div>
           </div>
 
@@ -333,6 +346,7 @@ export default function AIFindingsPanel({ study, model, onSaveReport }: Props) {
       reportMode: form.reportMode,
       fetalPresentation: form.fetalPresentation,
       bpdMm: form.bpdMm.trim() ? Number(form.bpdMm) : undefined,
+      priorBiometry: form.priorBiometry.trim() || undefined,
     });
     setShowForm(false);
   };
@@ -352,6 +366,7 @@ export default function AIFindingsPanel({ study, model, onSaveReport }: Props) {
     imageQuality: 'optimal',
     fetalPresentation: 'not_assessed',
     bpdMm: '',
+    priorBiometry: '',
   };
 
   return (
