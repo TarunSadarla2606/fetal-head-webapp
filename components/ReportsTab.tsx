@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import type { ApiReport } from '@/lib/types';
-import { reportPdfUrl } from '@/lib/api';
+import { reportDicomUrl, reportFhirUrl, reportPdfUrl } from '@/lib/api';
 import {
   AlertTriangle,
   ChevronDown,
@@ -219,9 +219,29 @@ function ReportRow({
           rel="noopener noreferrer"
           data-testid="report-pdf-link"
           className="inline-flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-200 mr-2"
-          title="Download PDF"
+          title="Download clinical report PDF"
         >
           <Download className="w-3 h-3" /> PDF
+        </a>
+        <a
+          href={reportFhirUrl(report.id)}
+          target="_blank"
+          rel="noopener noreferrer"
+          data-testid="report-fhir-link"
+          className="inline-flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-200 mr-2"
+          title="Download FHIR R4 Bundle (DiagnosticReport + Observations)"
+        >
+          <Download className="w-3 h-3" /> FHIR
+        </a>
+        <a
+          href={reportDicomUrl(report.id)}
+          target="_blank"
+          rel="noopener noreferrer"
+          data-testid="report-dicom-link"
+          className="inline-flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-200 mr-2"
+          title="Download DICOM Comprehensive SR (.dcm)"
+        >
+          <Download className="w-3 h-3" /> DICOM
         </a>
         {!isSigned && (
           <button

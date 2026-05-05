@@ -192,6 +192,18 @@ export function reportPdfUrl(reportId: string): string {
   return `${API_BASE}/reports/${encodeURIComponent(reportId)}/pdf`;
 }
 
+/** URL of the report's FHIR R4 Bundle (DiagnosticReport + Observations).
+ *  Status flips preliminary → final on sign-off. */
+export function reportFhirUrl(reportId: string): string {
+  return `${API_BASE}/reports/${encodeURIComponent(reportId)}/fhir`;
+}
+
+/** URL of the report's DICOM Comprehensive SR (.dcm). PreliminaryFlag /
+ *  CompletionFlag / VerificationFlag track sign-off state. */
+export function reportDicomUrl(reportId: string): string {
+  return `${API_BASE}/reports/${encodeURIComponent(reportId)}/dicom`;
+}
+
 /** Mark a report as signed-off. The server records IP / user-agent into the
  *  audit log and re-renders the PDF without the DRAFT watermark on next fetch. */
 export async function signReport(
