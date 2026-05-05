@@ -141,6 +141,44 @@ export interface ApiReport {
   fetal_presentation: string | null;
   bpd_mm: number | null;
   prior_biometry: string | null;
+  is_combined?: boolean;
+  combined_models_json?: string | null;
+}
+
+// ─── Combined multi-model report (Batch 6.4) ─────────────────────────────────
+
+export interface CombinedFinding {
+  model: ModelVariant;
+  finding_id?: string;
+  hc_mm?: number;
+  ga_str?: string;
+  ga_weeks?: number;
+  trimester?: string;
+  reliability?: number;
+  confidence_label?: string;
+  elapsed_ms?: number;
+}
+
+export interface CreateCombinedReportPayload {
+  findings: CombinedFinding[];   // 2–4 entries
+  patient_name: string;
+  study_date: string;
+  pixel_spacing_mm?: number;
+  pixel_spacing_dicom_derived?: boolean;
+  pixel_spacing_source?: 'DICOM' | 'CSV' | 'USER';
+  referring_physician?: string;
+  patient_id?: string;
+  patient_dob?: string;
+  lmp?: string;
+  ordering_facility?: string;
+  sonographer_name?: string;
+  clinical_indication?: string;
+  us_approach?: 'transabdominal' | 'transvaginal';
+  image_quality?: 'optimal' | 'suboptimal' | 'limited';
+  report_mode?: 'template' | 'llm';
+  fetal_presentation?: FetalPresentation;
+  bpd_mm?: number;
+  prior_biometry?: string;
 }
 
 export interface ApiAuditEntry {

@@ -1,6 +1,7 @@
 import type {
   ApiAuditEntry,
   ApiReport,
+  CreateCombinedReportPayload,
   CreateReportPayload,
   InferResponse,
   ModelVariant,
@@ -142,6 +143,26 @@ export async function createReport(
     body: JSON.stringify(payload),
   });
   return jsonOrThrow<ApiReport>(res, 'Failed to create report');
+}
+
+/** Generate a combined multi-model clinical report (2–4 selected models).
+ *  Server computes per-model consensus and renders a single PDF per the
+ *  AIUM/ACR/RSNA structured-reporting layout with a Consensus column,
+ *  per-model image strips, and Inter-Model Agreement section. */
+export async function createCombinedReport(
+  studyId: string,
+  payload: CreateCombinedReportPayload,
+  apiKey?: string,
+): Promise<ApiReport> {
+  const res = await fetch(
+    `${API_BASE}/studies/${encodeURIComponent(studyId)}/reports/combined`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders(apiKey) },
+      body: JSON.stringify(payload),
+    },
+  );
+  return jsonOrThrow<ApiReport>(res, 'Failed to create combined report');
 }
 
 /** List all reports for a study, newest first. */

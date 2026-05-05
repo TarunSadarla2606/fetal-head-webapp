@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { X, Loader2, CheckCircle2, AlertTriangle, Image as ImageIcon, Sparkles } from 'lucide-react';
+import { X, Loader2, CheckCircle2, AlertTriangle, Image as ImageIcon, Sparkles, Save } from 'lucide-react';
 import type { Study, CompareResult } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { gradcamUrl } from '@/lib/api';
@@ -150,12 +150,16 @@ export default function CompareView({
   study,
   results,
   onClose,
+  onSaveCombined,
 }: {
   study: Study;
   results: CompareResult[];
   onClose: () => void;
+  onSaveCombined?: () => void;
 }) {
   const allDone = results.every(r => r.status !== 'analyzing');
+  const doneCount = results.filter(r => r.status === 'done' && r.findings).length;
+  const canSaveCombined = allDone && doneCount >= 2;
   const layout = gridLayout(results.length);
 
   return (
@@ -171,12 +175,35 @@ export default function CompareView({
             <CheckCircle2 className="w-3 h-3" /> All complete
           </span>
         )}
-        <button
-          onClick={onClose}
-          className="ml-auto flex items-center gap-1.5 px-2.5 py-1 text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded transition-colors"
-        >
-          <X className="w-3.5 h-3.5" /> Back to Single Model
-        </button>
+        <div className="ml-auto flex items-center gap-2">
+          {onSaveCombined && (
+            <button
+              onClick={onSaveCombined}
+              disabled={!canSaveCombined}
+              title={
+                !allDone
+                  ? 'Wait for all model inferences to finish'
+                  : doneCount < 2
+                    ? 'Need at least 2 successful results to combine'
+                    : `Generate a combined PDF from ${doneCount} models`
+              }
+              className={cn(
+                'flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded transition-colors',
+                canSaveCombined
+                  ? 'bg-[#0D7680] hover:bg-[#0a5f67] text-white'
+                  : 'bg-slate-800 text-slate-600 cursor-not-allowed',
+              )}
+            >
+              <Save className="w-3.5 h-3.5" /> Save Combined Report
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="flex items-center gap-1.5 px-2.5 py-1 text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded transition-colors"
+          >
+            <X className="w-3.5 h-3.5" /> Back to Single Model
+          </button>
+        </div>
       </div>
 
       <div

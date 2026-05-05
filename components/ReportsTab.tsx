@@ -180,7 +180,18 @@ function ReportRow({
         {report.hc_mm != null ? `${report.hc_mm.toFixed(1)} mm` : '—'}
       </td>
       <td className="px-2 py-2 text-right text-slate-200">{report.ga_str ?? '—'}</td>
-      <td className="px-2 py-2 text-right text-slate-600">{report.model}</td>
+      <td className="px-2 py-2 text-right text-slate-600">
+        {report.is_combined ? (
+          <span
+            className="inline-block px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider bg-[#0D7680]/15 border border-[#0D7680]/40 text-[#5cd5dc] rounded"
+            title="Combined multi-model report"
+          >
+            COMBINED
+          </span>
+        ) : (
+          report.model
+        )}
+      </td>
       <td className="px-2 py-2 text-center">
         {isSigned ? (
           <span

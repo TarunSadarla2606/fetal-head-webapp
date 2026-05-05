@@ -5,10 +5,12 @@ import WorklistSidebar from './WorklistSidebar';
 import StudyViewer from './StudyViewer';
 import AIFindingsPanel from './AIFindingsPanel';
 import CompareView from './CompareView';
+import CombinedReportFormModal from './CombinedReportFormModal';
 import ReportsTab from './ReportsTab';
 import type {
   ApiReport,
   CompareResult,
+  CreateCombinedReportPayload,
   CreateReportPayload,
   ModelVariant,
   SavedReport,
@@ -16,6 +18,7 @@ import type {
 } from '@/lib/types';
 import {
   API_BASE,
+  createCombinedReport,
   createReport,
   getApiHealth,
   getDemoMetadata,
@@ -46,6 +49,7 @@ export default function WorkstationView() {
   const [apiStatus, setApiStatus] = useState<'checking' | 'live' | 'no-models' | 'offline'>('checking');
   const [apiModelCount, setApiModelCount] = useState(0);
   const [compareResults, setCompareResults] = useState<CompareResult[] | null>(null);
+  const [combinedFormOpen, setCombinedFormOpen] = useState(false);
   const currentFileRef = useRef<File | null>(null);
 
   const selectedStudy = studies.find(s => s.id === selectedId) ?? studies[0]!;
@@ -371,6 +375,22 @@ export default function WorkstationView() {
     [selectedStudy, pixelSpacing]
   );
 
+  const handleSaveCombinedReport = useCallback(
+    async (payload: CreateCombinedReportPayload) => {
+      if (!selectedStudy) return;
+      try {
+        const created = await createCombinedReport(selectedStudy.id, payload);
+        setReports(prev => [created, ...prev]);
+        setCombinedFormOpen(false);
+        setReportsOpen(true);
+      } catch (err) {
+        // Re-throw so the modal surfaces the error inline
+        throw err instanceof Error ? err : new Error('Failed to save combined report');
+      }
+    },
+    [selectedStudy],
+  );
+
   const handleSignReport = useCallback(
     async (reportId: string, signedBy: string, note: string | undefined) => {
       try {
@@ -435,6 +455,7 @@ export default function WorkstationView() {
             study={selectedStudy}
             results={compareResults}
             onClose={() => setCompareResults(null)}
+            onSaveCombined={() => setCombinedFormOpen(true)}
           />
         ) : (
           <>
@@ -470,6 +491,20 @@ export default function WorkstationView() {
         onRefresh={refreshReports}
         currentStudyName={selectedStudy?.patientName ?? ''}
       />
+
+      {combinedFormOpen && compareResults && (
+        <CombinedReportFormModal
+          results={compareResults}
+          patientName={selectedStudy.patientName}
+          studyDate={selectedStudy.studyDate}
+          pixelSpacingMm={pixelSpacing}
+          pixelSpacingSource={
+            selectedStudy.isDemo && selectedStudy.demoPixelSpacingMm != null ? 'CSV' : 'USER'
+          }
+          onSubmit={handleSaveCombinedReport}
+          onClose={() => setCombinedFormOpen(false)}
+        />
+      )}
     </div>
   );
 }

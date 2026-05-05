@@ -17,6 +17,11 @@ import {
   FlaskRound,
   CheckSquare,
 } from 'lucide-react';
+import {
+  type DemoScenario,
+  SCENARIO_INFO,
+  getScenarioPatient,
+} from '@/lib/demo-scenarios';
 
 function reliabilityTier(value: number): { label: string; color: string; tier: 'high' | 'medium' | 'low' } {
   if (value >= 0.85) return { label: 'HIGH', color: '#10b981', tier: 'high' };
@@ -52,81 +57,12 @@ interface ReportFormState {
   priorBiometry: string; // free-text prior measurement summary
 }
 
-// ── Demo-mode scenarios ────────────────────────────────────────────────────
-// LMP dates are computed from the current date so GA matches each scenario.
-type DemoScenario = 'A' | 'B' | 'C';
-
-function daysAgoIso(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  return d.toISOString().split('T')[0];
-}
-
+// Scenario logic lives in lib/demo-scenarios.ts (shared with the combined
+// modal). buildScenarioForm just merges the scenario patient fields into
+// the existing ReportFormState shape.
 function buildScenarioForm(s: DemoScenario, base: ReportFormState): ReportFormState {
-  // Each scenario fills realistic, internally-consistent clinical data.
-  // GA targets match the LMP minus today, so the AI HC reading should
-  // plausibly correspond to the indication.
-  switch (s) {
-    case 'A':  // Normal 2nd-trimester anatomy survey, ~19–20 weeks
-      return {
-        ...base,
-        patientName: 'Demo Patient A',
-        patientId: 'HC18-DEMO-001',
-        patientDob: daysAgoIso(28 * 365 + 120),  // ~28 yo
-        lmp: daysAgoIso(137),                    // ~19w4d
-        referringPhysician: 'Dr. Sarah Chen, OB/GYN',
-        orderingFacility: 'City General Hospital',
-        sonographerName: 'J. Park, RDMS',
-        clinicalIndication: 'Routine fetal anatomy survey at ~20 weeks. No prior complications.',
-        usApproach: 'transabdominal',
-        imageQuality: 'optimal',
-        fetalPresentation: 'cephalic',
-        bpdMm: '',
-        priorBiometry: '',
-      };
-    case 'B':  // LMP-size discordance, ~14–15 weeks, suspect FGR
-      return {
-        ...base,
-        patientName: 'Demo Patient B',
-        patientId: 'HC18-DEMO-002',
-        patientDob: daysAgoIso(34 * 365 + 200),  // ~34 yo
-        lmp: daysAgoIso(104),                    // ~14w6d
-        referringPhysician: 'Dr. James Park, MFM',
-        orderingFacility: 'University Medical Center',
-        sonographerName: 'M. Garcia, RDMS',
-        clinicalIndication: 'LMP-size discordance — rule out fetal growth restriction. Repeat dating scan.',
-        usApproach: 'transabdominal',
-        imageQuality: 'suboptimal',
-        fetalPresentation: 'cephalic',
-        bpdMm: '',
-        priorBiometry: '',
-      };
-    case 'C':  // IUGR / BPD-HC mismatch, ~24 weeks
-      return {
-        ...base,
-        patientName: 'Demo Patient C',
-        patientId: 'HC18-DEMO-003',
-        patientDob: daysAgoIso(31 * 365 + 60),
-        lmp: daysAgoIso(168),                    // 24w0d
-        referringPhysician: 'Dr. Maria Santos, MFM',
-        orderingFacility: 'Perinatology Associates',
-        sonographerName: 'K. Liu, RDMS',
-        clinicalIndication:
-          'Suspected IUGR — detailed biometry. HC/BPD mismatch evaluation. Doppler studies pending.',
-        usApproach: 'transabdominal',
-        imageQuality: 'suboptimal',
-        fetalPresentation: 'cephalic',
-        bpdMm: '52.0',                           // lags HC → mismatch flag
-        priorBiometry: 'HC 195 mm @ ' + daysAgoIso(21) + ' (~22w 4d)',
-      };
-  }
+  return { ...base, ...getScenarioPatient(s) };
 }
-
-const SCENARIO_INFO: Record<DemoScenario, { title: string; subtitle: string }> = {
-  A: { title: 'Scenario A',  subtitle: 'Normal · 2nd trimester anatomy' },
-  B: { title: 'Scenario B',  subtitle: 'LMP discordance · suspect FGR' },
-  C: { title: 'Scenario C',  subtitle: 'IUGR · BPD/HC mismatch' },
-};
 
 function Metric({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
