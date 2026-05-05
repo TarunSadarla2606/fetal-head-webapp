@@ -410,12 +410,17 @@ export default function WorkstationView() {
     <div className="flex flex-col h-screen overflow-hidden bg-[#0b0f1a]">
       <header className="flex items-center justify-between px-5 h-12 bg-[#0f1623] border-b border-slate-800/80 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
+          <a
+            href="/"
+            data-testid="back-to-landing"
+            className="flex items-center gap-2 hover:opacity-90"
+            title="Back to landing"
+          >
             <div className="w-6 h-6 rounded bg-[#0D7680] flex items-center justify-center shrink-0">
               <span className="text-white text-xs font-bold leading-none">F</span>
             </div>
             <span className="text-slate-100 font-semibold text-sm tracking-tight">FetalScan AI</span>
-          </div>
+          </a>
           <span className="hidden sm:block text-xs text-slate-600 border-l border-slate-700/60 pl-3">
             Fetal Head Circumference · Clinical Biometry
           </span>
