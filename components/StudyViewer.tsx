@@ -32,6 +32,8 @@ interface Props {
   onCompare: (variants: ModelVariant[]) => void;
   onFileChange: (file: File | null) => void;
   isDemo: boolean;
+  /** True while the selected demo study is still fetching its image from the API. */
+  imageLoading?: boolean;
 }
 
 export default function StudyViewer({
@@ -48,6 +50,7 @@ export default function StudyViewer({
   onCompare,
   onFileChange,
   isDemo,
+  imageLoading = false,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -56,15 +59,12 @@ export default function StudyViewer({
   const [isDragging, setIsDragging] = useState(false);
   const [elapsedSec, setElapsedSec] = useState(0);
   const [tab, setTab] = useState<ViewerTab>('image');
-  // Compare-models dropdown — start with all 4 selected so the existing "all"
-  // workflow is one click away.
   const [compareMenuOpen, setCompareMenuOpen] = useState(false);
   const [compareSelection, setCompareSelection] = useState<Set<ModelVariant>>(
     () => new Set(ALL_VARIANTS),
   );
   const compareMenuRef = useRef<HTMLDivElement>(null);
 
-  // Close the picker when clicking outside.
   useEffect(() => {
     if (!compareMenuOpen) return;
     const handler = (e: MouseEvent) => {
@@ -80,7 +80,6 @@ export default function StudyViewer({
     setCompareSelection(prev => {
       const next = new Set(prev);
       if (next.has(v)) {
-        // Enforce minimum of 2 selected variants
         if (next.size <= 2) return prev;
         next.delete(v);
       } else {
@@ -96,8 +95,6 @@ export default function StudyViewer({
     if (variants.length >= 2) onCompare(variants);
   };
 
-  // Reset to image tab whenever a new analysis starts or the study switches —
-  // an XAI overlay tied to a stale finding_id would 404 against the API.
   useEffect(() => {
     if (study.status === 'analyzing' || study.status === 'pending') setTab('image');
   }, [study.id, study.status]);
@@ -123,7 +120,6 @@ export default function StudyViewer({
     img.src = src;
   }, [study.imageDataUrl, study.findings?.overlay_b64]);
 
-  // Elapsed timer: counts up while analysis is running
   useEffect(() => {
     if (study.status !== 'analyzing') {
       setElapsedSec(0);
@@ -337,8 +333,6 @@ export default function StudyViewer({
         </div>
       </div>
 
-      {/* Tab switcher: Image View ‖ XAI. XAI is enabled only when we have a
-          real (non-synthetic) finding_id from a successful /infer call. */}
       <div className="flex items-center gap-1 px-3 py-1 bg-[#0b1018] border-b border-slate-800/80 shrink-0">
         <TabButton
           active={tab === 'image'}
@@ -372,7 +366,28 @@ export default function StudyViewer({
         onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
         onDragLeave={() => setIsDragging(false)}
       >
-        {study.imageDataUrl ? (
+        {imageLoading ? (
+          // Pulse skeleton shown while the real ultrasound image fetches from the API.
+          <div
+            data-testid="image-loading-skeleton"
+            className="flex flex-col items-center justify-center gap-4 w-full max-w-lg px-4"
+          >
+            <div className="w-full aspect-[5/4] rounded-xl bg-slate-800/70 border border-slate-700/50 relative overflow-hidden">
+              <div className="absolute inset-0 animate-pulse bg-slate-800" />
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-10">
+                <div className="w-20 h-20 rounded-full bg-slate-700/80 animate-pulse" />
+                <div className="w-full space-y-2">
+                  <div className="h-2.5 bg-slate-700/80 rounded-full animate-pulse" />
+                  <div className="h-2 bg-slate-700/60 rounded-full animate-pulse w-3/4 mx-auto" />
+                  <div className="h-2 bg-slate-700/40 rounded-full animate-pulse w-1/2 mx-auto" />
+                </div>
+              </div>
+            </div>
+            <p className="text-[10px] text-slate-600 uppercase tracking-wider">
+              Fetching ultrasound image from API…
+            </p>
+          </div>
+        ) : study.imageDataUrl ? (
           <>
             <canvas ref={canvasRef} className="block max-w-full max-h-full" />
 
@@ -417,7 +432,7 @@ export default function StudyViewer({
             <Upload className="w-10 h-10" />
             <div className="text-sm text-center">
               <p className="font-medium">Upload ultrasound image</p>
-              <p className="text-xs mt-1">Drop here or click to browse · JPEG / PNG</p>
+              <p className="text-xs mt-1">Drop here or click to browse &middot; JPEG / PNG</p>
             </div>
           </button>
         )}
