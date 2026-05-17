@@ -239,6 +239,15 @@ export default function LandingPage() {
       <footer className="px-8 py-6 border-t border-slate-800/80 bg-[#0f1623] text-center text-[11px] text-slate-600">
         FetalScan AI · Demonstration build · Research use only · Not cleared for clinical diagnosis
       </footer>
+
+      {/* Mobile-only Try Demo FAB */}
+      <Link
+        href="/app"
+        data-testid="mobile-fab-demo"
+        className="fixed bottom-6 right-6 z-50 flex md:hidden items-center gap-2 px-5 py-3.5 text-sm font-bold bg-[#0D7680] hover:bg-[#0a5f67] text-white rounded-full shadow-xl shadow-black/50 active:scale-95 transition-all"
+      >
+        Try Demo <ArrowRight className="w-4 h-4" />
+      </Link>
     </div>
   );
 }

@@ -239,21 +239,22 @@ export default function StudyViewer({
           />
         </label>
 
-        <div className="ml-auto flex items-center gap-2">
-          <div className="relative" ref={compareMenuRef}>
+        {/* Action buttons — full-width row on mobile, ml-auto on desktop */}
+        <div className="flex items-center gap-2 w-full md:w-auto md:ml-auto">
+          <div className="relative flex-1 md:flex-none" ref={compareMenuRef}>
             <button
               onClick={() => { if (canRun) setCompareMenuOpen(o => !o); }}
               disabled={!canRun}
               title="Pick 2–4 models to run in parallel on this image (with Grad-CAM)"
               className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded transition-colors',
+                'w-full flex items-center justify-center gap-1.5 px-3 py-1.5 min-h-[44px] md:min-h-0 text-xs font-semibold rounded transition-colors',
                 canRun
                   ? 'bg-slate-700 hover:bg-slate-600 text-slate-200'
                   : 'bg-slate-800 text-slate-600 cursor-not-allowed'
               )}
             >
               <LayoutGrid className="w-3.5 h-3.5" />
-              Compare Models · {compareSelection.size}
+              Compare · {compareSelection.size}
               <ChevronDown className={cn('w-3 h-3 transition-transform', compareMenuOpen && 'rotate-180')} />
             </button>
 
@@ -318,7 +319,7 @@ export default function StudyViewer({
             onClick={() => { if (!isAnalyzing) onAnalyze(isDemo ? null : currentFile); }}
             disabled={!canRun}
             className={cn(
-              'flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded transition-colors',
+              'flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 min-h-[48px] md:min-h-0 text-xs font-semibold rounded transition-colors',
               canRun
                 ? 'bg-[#0D7680] hover:bg-[#0a5f67] text-white'
                 : 'bg-slate-800 text-slate-600 cursor-not-allowed'
@@ -367,7 +368,6 @@ export default function StudyViewer({
         onDragLeave={() => setIsDragging(false)}
       >
         {imageLoading ? (
-          // Pulse skeleton shown while the real ultrasound image fetches from the API.
           <div
             data-testid="image-loading-skeleton"
             className="flex flex-col items-center justify-center gap-4 w-full max-w-lg px-4"

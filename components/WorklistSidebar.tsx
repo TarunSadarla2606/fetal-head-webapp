@@ -15,11 +15,15 @@ interface Props {
   studies: Study[];
   selectedId: string;
   onSelect: (id: string) => void;
+  className?: string;
 }
 
-export default function WorklistSidebar({ studies, selectedId, onSelect }: Props) {
+export default function WorklistSidebar({ studies, selectedId, onSelect, className }: Props) {
   return (
-    <aside className="w-60 shrink-0 bg-[#0f1623] border-r border-slate-800/80 flex flex-col overflow-hidden">
+    <aside className={cn(
+      'w-60 shrink-0 bg-[#0f1623] border-r border-slate-800/80 flex flex-col overflow-hidden',
+      className,
+    )}>
       <div className="px-3 py-2 border-b border-slate-800/60">
         <h2 className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Worklist</h2>
       </div>
