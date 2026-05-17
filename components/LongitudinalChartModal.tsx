@@ -1,11 +1,5 @@
 'use client';
 
-// Longitudinal growth chart — overlays a patient's HC measurements across
-// multiple studies on the Hadlock 1984 reference curve. Self-contained SVG
-// (no chart-lib dependency); the same curve is also drawn server-side in
-// the PDF (app/report.py:_hc_growth_chart_b64) so the visualisation is
-// consistent across surfaces.
-
 import { useEffect, useState } from 'react';
 import { TrendingUp, X, AlertTriangle } from 'lucide-react';
 import type { ApiReport } from '@/lib/types';
@@ -14,24 +8,21 @@ import { listReportsForPatient } from '@/lib/api';
 interface Props {
   patientId: string;
   patientName: string;
-  highlightReportId?: string;          // current/selected report — drawn red
+  highlightReportId?: string;
   onClose: () => void;
 }
 
-// Inverse Hadlock 1984 polynomial — same form used server-side. Returns GA
-// in weeks for a given HC in mm.
 function hadlockGa(hcMm: number): number {
   const x = hcMm / 10;
   const ga = 8.96 + 0.540 * x - 0.0040 * x * x + 0.000399 * x * x * x;
   return Math.max(10, Math.min(42, ga));
 }
 
-// Build the Hadlock reference curve as a series of (ga, hc) points
 function buildReferenceCurve(): Array<{ ga: number; hc: number; sd2: number }> {
   const out: Array<{ ga: number; hc: number; sd2: number }> = [];
   for (let hc = 60; hc <= 380; hc += 4) {
     const ga = hadlockGa(hc);
-    const sd2 = Math.max(8.0, hc * 0.04);   // matches server-side approximation
+    const sd2 = Math.max(8.0, hc * 0.04);
     out.push({ ga, hc, sd2 });
   }
   return out;
@@ -39,16 +30,15 @@ function buildReferenceCurve(): Array<{ ga: number; hc: number; sd2: number }> {
 
 const REF_CURVE = buildReferenceCurve();
 
-// Chart geometry
 const W = 640;
 const H = 360;
 const PAD_L = 56;
 const PAD_R = 24;
 const PAD_T = 24;
 const PAD_B = 44;
-const X_MIN = 10;       // weeks
+const X_MIN = 10;
 const X_MAX = 42;
-const Y_MIN = 50;       // mm
+const Y_MIN = 50;
 const Y_MAX = 400;
 
 const xScale = (ga: number) =>
@@ -74,12 +64,9 @@ export default function LongitudinalChartModal({
       .catch(err => {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Load failed');
       });
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [patientId]);
 
-  // Pre-compute SVG path strings for the mean curve + ±2 SD band
   const meanPath = REF_CURVE.map(
     (p, i) => `${i === 0 ? 'M' : 'L'}${xScale(p.ga).toFixed(1)},${yScale(p.hc).toFixed(1)}`,
   ).join(' ');
@@ -88,7 +75,6 @@ export default function LongitudinalChartModal({
   const lowerPath = REF_CURVE.map(p => `${xScale(p.ga).toFixed(1)},${yScale(p.hc - p.sd2).toFixed(1)}`);
   const bandPath = `M${upperPath.join(' L')} L${lowerPath.reverse().join(' L')} Z`;
 
-  // Patient points — only those with hc_mm + ga_weeks
   const points =
     reports
       ?.filter(r => r.hc_mm != null && r.ga_weeks != null)
@@ -102,11 +88,11 @@ export default function LongitudinalChartModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/70 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
     >
-      <div className="w-[760px] max-h-[92vh] bg-[#0f1623] border border-slate-700 rounded-lg shadow-2xl flex flex-col">
+      <div className="w-full max-h-[92vh] md:w-[760px] bg-[#0f1623] border border-slate-700 rounded-t-2xl md:rounded-lg shadow-2xl flex flex-col">
         <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-800 shrink-0">
           <TrendingUp className="w-4 h-4 text-[#0D7680]" />
           <h3 className="text-sm font-semibold text-slate-200">
@@ -138,32 +124,40 @@ export default function LongitudinalChartModal({
           {reports && (
             <>
               <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" aria-label="HC growth chart">
-                {/* axes */}
+                <style>{`
+                  .lc-tick { font-size: 13px; fill: #94a3b8; }
+                  .lc-axis-label { font-size: 11px; fill: #94a3b8; }
+                  .lc-legend-text { font-size: 10px; fill: #cbd5e1; }
+                  @media (max-width: 767px) {
+                    .lc-tick { font-size: 10px; }
+                    .lc-axis-label { font-size: 10px; }
+                  }
+                `}</style>
+                {/* chart background */}
                 <rect x={PAD_L} y={PAD_T} width={W - PAD_L - PAD_R} height={H - PAD_T - PAD_B} fill="#0b0f1a" stroke="#334155" strokeWidth={0.5} />
                 {/* gridlines + ticks (X) */}
                 {[14, 18, 22, 26, 30, 34, 38].map(ga => (
                   <g key={`x-${ga}`}>
                     <line x1={xScale(ga)} y1={PAD_T} x2={xScale(ga)} y2={H - PAD_B} stroke="#1e293b" strokeWidth={0.5} />
-                    <text x={xScale(ga)} y={H - PAD_B + 14} fill="#94a3b8" fontSize="10" textAnchor="middle">{ga}</text>
+                    <text x={xScale(ga)} y={H - PAD_B + 14} className="lc-tick" textAnchor="middle">{ga}</text>
                   </g>
                 ))}
                 {/* gridlines + ticks (Y) */}
                 {[100, 150, 200, 250, 300, 350].map(hc => (
                   <g key={`y-${hc}`}>
                     <line x1={PAD_L} y1={yScale(hc)} x2={W - PAD_R} y2={yScale(hc)} stroke="#1e293b" strokeWidth={0.5} />
-                    <text x={PAD_L - 6} y={yScale(hc) + 3} fill="#94a3b8" fontSize="10" textAnchor="end">{hc}</text>
+                    <text x={PAD_L - 6} y={yScale(hc) + 3} className="lc-tick" textAnchor="end">{hc}</text>
                   </g>
                 ))}
 
                 {/* axis labels */}
-                <text x={(W + PAD_L - PAD_R) / 2} y={H - 8} fill="#94a3b8" fontSize="11" textAnchor="middle">
+                <text x={(W + PAD_L - PAD_R) / 2} y={H - 8} className="lc-axis-label" textAnchor="middle">
                   Gestational age (weeks)
                 </text>
                 <text
                   x={-((H + PAD_T - PAD_B) / 2)}
                   y={16}
-                  fill="#94a3b8"
-                  fontSize="11"
+                  className="lc-axis-label"
                   textAnchor="middle"
                   transform="rotate(-90)"
                 >
@@ -175,7 +169,7 @@ export default function LongitudinalChartModal({
                 {/* mean curve */}
                 <path d={meanPath} stroke="#0D7680" strokeWidth={1.6} fill="none" />
 
-                {/* patient points + connecting segments */}
+                {/* patient connecting line */}
                 {points.length >= 2 && (
                   <polyline
                     points={points
@@ -208,13 +202,13 @@ export default function LongitudinalChartModal({
                 <g transform={`translate(${PAD_L + 8}, ${PAD_T + 8})`}>
                   <rect width={170} height={70} fill="#0b0f1a" stroke="#334155" strokeWidth={0.5} fillOpacity={0.85} />
                   <line x1={8} y1={14} x2={26} y2={14} stroke="#0D7680" strokeWidth={1.6} />
-                  <text x={32} y={17} fill="#cbd5e1" fontSize="10">Hadlock 1984 mean</text>
+                  <text x={32} y={17} className="lc-legend-text">Hadlock 1984 mean</text>
                   <rect x={8} y={22} width={18} height={8} fill="#0D7680" fillOpacity={0.18} />
-                  <text x={32} y={29} fill="#cbd5e1" fontSize="10">Population ±2 SD</text>
+                  <text x={32} y={29} className="lc-legend-text">Population ±2 SD</text>
                   <circle cx={17} cy={42} r={4} fill="#dc2626" />
-                  <text x={32} y={45} fill="#cbd5e1" fontSize="10">Current study</text>
+                  <text x={32} y={45} className="lc-legend-text">Current study</text>
                   <circle cx={17} cy={56} r={4} fill="#94a3b8" />
-                  <text x={32} y={59} fill="#cbd5e1" fontSize="10">Prior studies</text>
+                  <text x={32} y={59} className="lc-legend-text">Prior studies</text>
                 </g>
               </svg>
 
