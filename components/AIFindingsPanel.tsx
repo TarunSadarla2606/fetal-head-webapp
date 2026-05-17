@@ -36,12 +36,9 @@ interface Props {
 }
 
 interface ReportFormState {
-  // Mode toggle
   reportMode: 'template' | 'llm';
-  // Pre-filled from study
   patientName: string;
   studyDate: string;
-  // User-entered clinical fields
   referringPhysician: string;
   patientId: string;
   patientDob: string;
@@ -51,15 +48,11 @@ interface ReportFormState {
   clinicalIndication: string;
   usApproach: 'transabdominal' | 'transvaginal';
   imageQuality: 'optimal' | 'suboptimal' | 'limited';
-  // v3.1: optional secondary biometric + fetal lie
   fetalPresentation: 'cephalic' | 'breech' | 'transverse' | 'not_assessed';
-  bpdMm: string; // text input — parsed to number on submit; empty string allowed
-  priorBiometry: string; // free-text prior measurement summary
+  bpdMm: string;
+  priorBiometry: string;
 }
 
-// Scenario logic lives in lib/demo-scenarios.ts (shared with the combined
-// modal). buildScenarioForm just merges the scenario patient fields into
-// the existing ReportFormState shape.
 function buildScenarioForm(s: DemoScenario, base: ReportFormState): ReportFormState {
   return { ...base, ...getScenarioPatient(s) };
 }
@@ -133,11 +126,11 @@ function ReportFormModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/70 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
     >
-      <div className="w-[600px] max-h-[90vh] bg-[#0f1623] border border-slate-700 rounded-lg shadow-2xl flex flex-col">
+      <div className="w-full max-h-[92vh] md:w-[600px] bg-[#0f1623] border border-slate-700 rounded-t-2xl md:rounded-lg shadow-2xl flex flex-col">
         {/* Header */}
         <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-800 shrink-0">
           <FileText className="w-4 h-4 text-[#0D7680]" />
@@ -155,7 +148,7 @@ function ReportFormModal({
         {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
 
-          {/* ── Mode Toggle ─────────────────────────────────────── */}
+          {/* ── Mode Toggle ─────────────────────────────────────────── */}
           <div>
             <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-2">Report Mode</p>
             <div className="flex gap-2">
@@ -191,7 +184,7 @@ function ReportFormModal({
             </p>
           </div>
 
-          {/* ── Demo Mode (scenario presets) ─────────────────────── */}
+          {/* ── Demo Mode (scenario presets) ────────────────────────────── */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
@@ -206,7 +199,7 @@ function ReportFormModal({
                 </button>
               )}
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               {(['A', 'B', 'C'] as DemoScenario[]).map(s => {
                 const info = SCENARIO_INFO[s];
                 const active = demoScenario === s;
@@ -236,7 +229,7 @@ function ReportFormModal({
             </p>
           </div>
 
-          {/* ── AI Analysis Results (read-only autofill) ─────────── */}
+          {/* ── AI Analysis Results (read-only autofill) ────────────────────── */}
           {findings && findings.hc_mm != null && (
             <div className="bg-emerald-500/5 border border-emerald-500/30 rounded p-3 space-y-2">
               <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-semibold text-emerald-400">
@@ -255,10 +248,10 @@ function ReportFormModal({
             </div>
           )}
 
-          {/* ── Patient Information ──────────────────────────────── */}
+          {/* ── Patient Information ────────────────────────────────────────── */}
           <div>
             <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-2">Patient Information</p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <Field label="Patient Name *" value={form.patientName} onChange={v => set('patientName', v)} />
               <Field label="Patient ID / MRN" value={form.patientId} onChange={v => set('patientId', v)} placeholder="Optional" />
               <Field label="Date of Birth" value={form.patientDob} onChange={v => set('patientDob', v)} placeholder="YYYY-MM-DD" />
@@ -268,22 +261,22 @@ function ReportFormModal({
                 value={form.lmp}
                 onChange={v => set('lmp', v)}
                 placeholder="YYYY-MM-DD — for GA cross-check"
-                className="col-span-2"
+                className="col-span-1 sm:col-span-2"
               />
             </div>
           </div>
 
-          {/* ── Referral Information ─────────────────────────────── */}
+          {/* ── Referral Information ─────────────────────────────────────── */}
           <div>
             <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-2">Referral Information</p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <Field label="Referring Physician" value={form.referringPhysician} onChange={v => set('referringPhysician', v)} placeholder="Dr. Jane Smith" />
               <Field label="Ordering Facility" value={form.orderingFacility} onChange={v => set('orderingFacility', v)} placeholder="Optional" />
               <Field label="Sonographer" value={form.sonographerName} onChange={v => set('sonographerName', v)} placeholder="Optional" />
             </div>
           </div>
 
-          {/* ── Clinical Indication ──────────────────────────────── */}
+          {/* ── Clinical Indication ───────────────────────────────────────── */}
           <div>
             <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-1">Clinical Indication</p>
             <textarea
@@ -291,31 +284,31 @@ function ReportFormModal({
               onChange={e => set('clinicalIndication', e.target.value)}
               rows={2}
               placeholder="e.g. Routine gestational dating at 13 weeks"
-              className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-[#0D7680] resize-none"
+              className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-2.5 md:py-1.5 text-sm md:text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-[#0D7680] resize-none"
             />
           </div>
 
-          {/* ── Technical Parameters ─────────────────────────────── */}
+          {/* ── Technical Parameters ───────────────────────────────────────── */}
           <div>
             <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-2">Technical Parameters</p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
-                <label className="text-[10px] text-slate-500 font-semibold">US Approach</label>
+                <label className="text-xs md:text-[10px] text-slate-500 font-semibold">US Approach</label>
                 <select
                   value={form.usApproach}
                   onChange={e => set('usApproach', e.target.value as 'transabdominal' | 'transvaginal')}
-                  className="mt-1 w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-[#0D7680]"
+                  className="mt-1 w-full bg-slate-800 border border-slate-700 rounded px-2 py-2.5 md:py-1.5 text-sm md:text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-[#0D7680]"
                 >
                   <option value="transabdominal">Transabdominal</option>
                   <option value="transvaginal">Transvaginal</option>
                 </select>
               </div>
               <div>
-                <label className="text-[10px] text-slate-500 font-semibold">Image Quality</label>
+                <label className="text-xs md:text-[10px] text-slate-500 font-semibold">Image Quality</label>
                 <select
                   value={form.imageQuality}
                   onChange={e => set('imageQuality', e.target.value as 'optimal' | 'suboptimal' | 'limited')}
-                  className="mt-1 w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-[#0D7680]"
+                  className="mt-1 w-full bg-slate-800 border border-slate-700 rounded px-2 py-2.5 md:py-1.5 text-sm md:text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-[#0D7680]"
                 >
                   <option value="optimal">Optimal</option>
                   <option value="suboptimal">Suboptimal</option>
@@ -323,11 +316,11 @@ function ReportFormModal({
                 </select>
               </div>
               <div>
-                <label className="text-[10px] text-slate-500 font-semibold">Fetal Lie / Presentation</label>
+                <label className="text-xs md:text-[10px] text-slate-500 font-semibold">Fetal Lie / Presentation</label>
                 <select
                   value={form.fetalPresentation}
                   onChange={e => set('fetalPresentation', e.target.value as ReportFormState['fetalPresentation'])}
-                  className="mt-1 w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-[#0D7680]"
+                  className="mt-1 w-full bg-slate-800 border border-slate-700 rounded px-2 py-2.5 md:py-1.5 text-sm md:text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-[#0D7680]"
                 >
                   <option value="not_assessed">Not assessed</option>
                   <option value="cephalic">Cephalic</option>
@@ -336,7 +329,7 @@ function ReportFormModal({
                 </select>
               </div>
               <div>
-                <label className="text-[10px] text-slate-500 font-semibold">
+                <label className="text-xs md:text-[10px] text-slate-500 font-semibold">
                   BPD (mm) — optional
                 </label>
                 <input
@@ -346,11 +339,11 @@ function ReportFormModal({
                   value={form.bpdMm}
                   onChange={e => set('bpdMm', e.target.value)}
                   placeholder="e.g. 58.4"
-                  className="mt-1 w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-[#0D7680]"
+                  className="mt-1 w-full bg-slate-800 border border-slate-700 rounded px-2 py-2.5 md:py-1.5 text-sm md:text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-[#0D7680]"
                 />
               </div>
-              <div className="col-span-3">
-                <label className="text-[10px] text-slate-500 font-semibold">
+              <div className="col-span-1 sm:col-span-2">
+                <label className="text-xs md:text-[10px] text-slate-500 font-semibold">
                   Prior biometry — optional
                 </label>
                 <input
@@ -358,7 +351,7 @@ function ReportFormModal({
                   value={form.priorBiometry}
                   onChange={e => set('priorBiometry', e.target.value)}
                   placeholder="e.g. HC 198 mm @ 2024-12-01 (22w 3d)"
-                  className="mt-1 w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-[#0D7680]"
+                  className="mt-1 w-full bg-slate-800 border border-slate-700 rounded px-2 py-2.5 md:py-1.5 text-sm md:text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-[#0D7680]"
                 />
               </div>
             </div>
@@ -400,13 +393,13 @@ function Field({
 }) {
   return (
     <div className={className}>
-      <label className="text-[10px] text-slate-500 font-semibold">{label}</label>
+      <label className="text-xs md:text-[10px] text-slate-500 font-semibold">{label}</label>
       <input
         type="text"
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        className="mt-1 w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-[#0D7680]"
+        className="mt-1 w-full bg-slate-800 border border-slate-700 rounded px-2 py-2.5 md:py-1.5 text-sm md:text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-[#0D7680]"
       />
     </div>
   );
@@ -513,7 +506,7 @@ export default function AIFindingsPanel({ study, model, onSaveReport }: Props) {
 
   return (
     <>
-      <aside className="w-72 shrink-0 bg-[#0f1623] border-l border-slate-800/80 flex flex-col overflow-hidden">
+      <aside className="w-full md:w-72 md:shrink-0 bg-[#0f1623] border-t md:border-t-0 md:border-l border-slate-800/80 flex flex-col overflow-hidden">
         <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-800/60">
           <Brain className="w-4 h-4 text-[#0D7680]" />
           <h2 className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">AI Findings</h2>
@@ -671,7 +664,7 @@ export default function AIFindingsPanel({ study, model, onSaveReport }: Props) {
                 <button
                   onClick={handleOpenForm}
                   data-testid="open-report-form"
-                  className="w-full flex items-center justify-center gap-2 py-2 text-xs font-semibold bg-[#0D7680] hover:bg-[#0a5f67] text-white rounded transition-colors"
+                  className="w-full flex items-center justify-center gap-2 py-2 min-h-[48px] md:min-h-0 text-sm md:text-xs font-semibold bg-[#0D7680] hover:bg-[#0a5f67] text-white rounded transition-colors"
                 >
                   <Save className="w-3.5 h-3.5" /> Save to Reports
                 </button>
