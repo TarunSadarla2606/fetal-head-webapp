@@ -124,45 +124,47 @@ export default function ReportsTab({
               No reports yet for this study.
             </p>
           ) : (
-            <table className="w-full text-xs" data-testid="reports-table">
-              <thead>
-                <tr className="border-b border-slate-800 text-slate-600">
-                  <th className="px-4 py-1.5 text-left font-medium">Patient</th>
-                  <th className="px-2 py-1.5 text-left font-medium">Date</th>
-                  <th className="px-2 py-1.5 text-right font-medium">HC</th>
-                  <th className="px-2 py-1.5 text-right font-medium">GA</th>
-                  <th className="px-2 py-1.5 text-right font-medium">Model</th>
-                  <th className="px-2 py-1.5 text-center font-medium">Status</th>
-                  <th className="px-2 py-1.5" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/60">
-                {reports.map((r) => (
-                  <ReportRow
-                    key={r.id}
-                    report={r}
-                    onRequestSign={() =>
-                      setDialog({
-                        reportId: r.id,
-                        patientName: r.patient_name,
-                        signedBy: '',
-                        note: '',
-                        submitting: false,
-                        error: null,
-                      })
-                    }
-                    onRequestGrowth={() => {
-                      if (!r.patient_id) return;
-                      setGrowthFor({
-                        patientId: r.patient_id,
-                        patientName: r.patient_name,
-                        reportId: r.id,
-                      });
-                    }}
-                  />
-                ))}
-              </tbody>
-            </table>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs" data-testid="reports-table">
+                <thead>
+                  <tr className="border-b border-slate-800 text-slate-600">
+                    <th className="px-4 py-1.5 text-left font-medium">Patient</th>
+                    <th className="px-2 py-1.5 text-left font-medium">Date</th>
+                    <th className="px-2 py-1.5 text-right font-medium">HC</th>
+                    <th className="px-2 py-1.5 text-right font-medium">GA</th>
+                    <th className="px-2 py-1.5 text-right font-medium">Model</th>
+                    <th className="px-2 py-1.5 text-center font-medium">Status</th>
+                    <th className="px-2 py-1.5" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {reports.map((r) => (
+                    <ReportRow
+                      key={r.id}
+                      report={r}
+                      onRequestSign={() =>
+                        setDialog({
+                          reportId: r.id,
+                          patientName: r.patient_name,
+                          signedBy: '',
+                          note: '',
+                          submitting: false,
+                          error: null,
+                        })
+                      }
+                      onRequestGrowth={() => {
+                        if (!r.patient_id) return;
+                        setGrowthFor({
+                          patientId: r.patient_id,
+                          patientName: r.patient_name,
+                          reportId: r.id,
+                        });
+                      }}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}
@@ -238,59 +240,61 @@ function ReportRow({
           </span>
         )}
       </td>
-      <td className="px-2 py-2 text-right whitespace-nowrap">
-        <a
-          href={reportPdfUrl(report.id)}
-          target="_blank"
-          rel="noopener noreferrer"
-          data-testid="report-pdf-link"
-          className="inline-flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-200 mr-2"
-          title="Download clinical report PDF"
-        >
-          <Download className="w-3 h-3" /> PDF
-        </a>
-        <a
-          href={reportFhirUrl(report.id)}
-          target="_blank"
-          rel="noopener noreferrer"
-          data-testid="report-fhir-link"
-          className="inline-flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-200 mr-2"
-          title="Download FHIR R4 Bundle (DiagnosticReport + Observations)"
-        >
-          <Download className="w-3 h-3" /> FHIR
-        </a>
-        <a
-          href={reportDicomUrl(report.id)}
-          target="_blank"
-          rel="noopener noreferrer"
-          data-testid="report-dicom-link"
-          className="inline-flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-200 mr-2"
-          title="Download DICOM Comprehensive SR (.dcm)"
-        >
-          <Download className="w-3 h-3" /> DICOM
-        </a>
-        <button
-          onClick={onRequestGrowth}
-          disabled={!report.patient_id}
-          data-testid="report-growth-button"
-          className="inline-flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed mr-2"
-          title={
-            report.patient_id
-              ? 'Open longitudinal growth chart for this patient'
-              : 'Patient ID required to plot longitudinal growth chart'
-          }
-        >
-          <TrendingUp className="w-3 h-3" /> Growth
-        </button>
-        {!isSigned && (
-          <button
-            onClick={onRequestSign}
-            data-testid="report-sign-button"
-            className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold bg-[#0D7680]/15 hover:bg-[#0D7680]/30 border border-[#0D7680]/40 text-[#5cd5dc] rounded"
+      <td className="px-2 py-2">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-end gap-1 md:gap-0">
+          <a
+            href={reportPdfUrl(report.id)}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="report-pdf-link"
+            className="inline-flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-200 md:mr-2"
+            title="Download clinical report PDF"
           >
-            <FileSignature className="w-3 h-3" /> Sign
+            <Download className="w-3 h-3" /> PDF
+          </a>
+          <a
+            href={reportFhirUrl(report.id)}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="report-fhir-link"
+            className="inline-flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-200 md:mr-2"
+            title="Download FHIR R4 Bundle (DiagnosticReport + Observations)"
+          >
+            <Download className="w-3 h-3" /> FHIR
+          </a>
+          <a
+            href={reportDicomUrl(report.id)}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="report-dicom-link"
+            className="inline-flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-200 md:mr-2"
+            title="Download DICOM Comprehensive SR (.dcm)"
+          >
+            <Download className="w-3 h-3" /> DICOM
+          </a>
+          <button
+            onClick={onRequestGrowth}
+            disabled={!report.patient_id}
+            data-testid="report-growth-button"
+            className="inline-flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed md:mr-2"
+            title={
+              report.patient_id
+                ? 'Open longitudinal growth chart for this patient'
+                : 'Patient ID required to plot longitudinal growth chart'
+            }
+          >
+            <TrendingUp className="w-3 h-3" /> Growth
           </button>
-        )}
+          {!isSigned && (
+            <button
+              onClick={onRequestSign}
+              data-testid="report-sign-button"
+              className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold bg-[#0D7680]/15 hover:bg-[#0D7680]/30 border border-[#0D7680]/40 text-[#5cd5dc] rounded"
+            >
+              <FileSignature className="w-3 h-3" /> Sign
+            </button>
+          )}
+        </div>
       </td>
     </tr>
   );

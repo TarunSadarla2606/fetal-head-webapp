@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { X } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import WorklistSidebar from './WorklistSidebar';
 import StudyViewer from './StudyViewer';
 import AIFindingsPanel from './AIFindingsPanel';
@@ -48,17 +50,17 @@ export default function WorkstationView() {
   const [reportsError, setReportsError] = useState<string | null>(null);
   const [apiStatus, setApiStatus] = useState<'checking' | 'live' | 'no-models' | 'offline'>('checking');
   const [apiModelCount, setApiModelCount] = useState(0);
+  const [apiCheckCount, setApiCheckCount] = useState(0);
+  const [isRetrying, setIsRetrying] = useState(false);
   const [compareResults, setCompareResults] = useState<CompareResult[] | null>(null);
   const [combinedFormOpen, setCombinedFormOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [mobileWorklistOpen, setMobileWorklistOpen] = useState(false);
+  const [mobileTab, setMobileTab] = useState<'viewer' | 'findings'>('viewer');
   const currentFileRef = useRef<File | null>(null);
 
   const selectedStudy = studies.find(s => s.id === selectedId) ?? studies[0]!;
 
-  // Keyboard shortcuts (Batch 8.4) — j/k navigate worklist, s opens
-  // Reports tab + sign-off if there's an unsigned report, ? toggles the
-  // shortcuts cheatsheet overlay. Suppressed while typing in inputs /
-  // textareas / contenteditable so the modal forms don't break.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement | null)?.tagName?.toLowerCase();
@@ -84,32 +86,45 @@ export default function WorkstationView() {
         setShortcutsOpen(o => !o);
       } else if (e.key === 'Escape') {
         setShortcutsOpen(false);
+        setMobileWorklistOpen(false);
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [studies]);
 
-  // Check API health on mount — drives the header status badge
   useEffect(() => {
-    getApiHealth().then(health => {
+    let mounted = true;
+    const check = async () => {
+      const health = await getApiHealth();
+      if (!mounted) return;
+      setApiCheckCount(c => c + 1);
       if (!health) { setApiStatus('offline'); return; }
       setApiModelCount(health.models_available.length);
       setApiStatus(health.models_available.length > 0 ? 'live' : 'no-models');
-    });
+    };
+    check();
+    const intervalId = setInterval(check, 30_000);
+    return () => { mounted = false; clearInterval(intervalId); };
   }, []);
 
-  // On mount: fetch all demo subjects from the API and create studies dynamically.
-  // Falls back to INITIAL_STUDIES (synthetic SVGs) when the API is offline.
+  const retryNow = useCallback(async () => {
+    setIsRetrying(true);
+    const health = await getApiHealth();
+    setApiCheckCount(c => c + 1);
+    if (!health) { setApiStatus('offline'); }
+    else {
+      setApiModelCount(health.models_available.length);
+      setApiStatus(health.models_available.length > 0 ? 'live' : 'no-models');
+    }
+    setIsRetrying(false);
+  }, []);
+
   useEffect(() => {
     async function loadDemoStudies() {
       const files = await listDemoSubjects();
       if (files.length === 0) return;
 
-      // Curated patient names + study dates for the first 10 worklist
-      // entries — match the backend demo-seed (Batch 8.2) so the Reports
-      // tab pre-populates with realistic clinical context. Studies 11+
-      // fall back to the generic "Demo Subject N" pattern.
       const SEED_NAMES: Array<{ name: string; date: string; flag?: string }> = [
         { name: 'Sarah Thompson',  date: '2026-04-29' },
         { name: 'Maria Santos',    date: '2026-04-28', flag: 'microcephaly' },
@@ -142,7 +157,6 @@ export default function WorkstationView() {
       setStudies(newStudies);
       setSelectedId(newStudies[0].id);
 
-      // Load images and HC18 metadata (pixel spacing + reference HC) progressively
       for (const study of newStudies) {
         try {
           const [imgRes, meta] = await Promise.all([
@@ -177,7 +191,6 @@ export default function WorkstationView() {
     loadDemoStudies();
   }, []);
 
-  // Auto-apply the HC18 pixel spacing whenever the selected demo study changes.
   useEffect(() => {
     if (selectedStudy?.isDemo && selectedStudy.demoPixelSpacingMm != null) {
       setPixelSpacing(selectedStudy.demoPixelSpacingMm);
@@ -206,7 +219,6 @@ export default function WorkstationView() {
       if (selectedStudy.isDemo) {
         let lastError: string | undefined;
 
-        // Try real inference via the API
         if (selectedStudy.demoImagePath) {
           try {
             const imgRes = await fetch(`${API_BASE}/demo/${encodeURIComponent(selectedStudy.demoImagePath)}`);
@@ -246,7 +258,6 @@ export default function WorkstationView() {
           }
         }
 
-        // Pre-baked fallback: mark isSynthetic=true so the UI clearly shows fabricated values.
         await new Promise(resolve => setTimeout(resolve, 1600));
         const findings = getDemoFindings(selectedId);
         setStudies(prev =>
@@ -308,12 +319,10 @@ export default function WorkstationView() {
   );
 
   const handleCompare = useCallback(async (variants: ModelVariant[]) => {
-    // Initialise one slot per selected variant
     setCompareResults(
       variants.map(v => ({ variant: v, label: VARIANT_LABEL[v], status: 'analyzing' }))
     );
 
-    // Resolve the image file once — fetch from API for demo, use uploaded file otherwise
     let imageFile: File | null = null;
     if (selectedStudy.isDemo && selectedStudy.demoImagePath) {
       try {
@@ -335,9 +344,6 @@ export default function WorkstationView() {
     }
 
     const file = imageFile;
-    // Fire all selected variants in parallel; update each slot as it completes.
-    // Grad-CAM PNGs are loaded by the browser directly from the URL, so no extra
-    // fetch is needed here — the finding_id returned by /infer is enough.
     await Promise.all(
       variants.map(async variant => {
         try {
@@ -360,8 +366,6 @@ export default function WorkstationView() {
     );
   }, [selectedStudy, pixelSpacing, threshold]);
 
-  // Refetches the currently-selected study's reports from the API.
-  // Triggered when the panel opens or after a create / sign mutation.
   const refreshReports = useCallback(async () => {
     if (!selectedStudy) return;
     setReportsLoading(true);
@@ -376,8 +380,6 @@ export default function WorkstationView() {
     }
   }, [selectedStudy]);
 
-  // Open the panel and refresh whenever the tab toggles open or the study
-  // selection changes while the panel is already open.
   useEffect(() => {
     if (reportsOpen) refreshReports();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -386,9 +388,6 @@ export default function WorkstationView() {
   const handleSaveReport = useCallback(
     async (report: Omit<SavedReport, 'id' | 'analyzedAt'>) => {
       if (!selectedStudy) return;
-      // Resolve pixel-spacing provenance: HC18 demo subjects come with a
-      // verified value from the dataset CSV; everything else is user-supplied.
-      // (DICOM-derived spacings only flow through the backend pipeline.)
       const pixelSpacingSource: 'CSV' | 'USER' =
         selectedStudy.isDemo && selectedStudy.demoPixelSpacingMm != null
           ? 'CSV'
@@ -442,7 +441,6 @@ export default function WorkstationView() {
         setCombinedFormOpen(false);
         setReportsOpen(true);
       } catch (err) {
-        // Re-throw so the modal surfaces the error inline
         throw err instanceof Error ? err : new Error('Failed to save combined report');
       }
     },
@@ -464,6 +462,10 @@ export default function WorkstationView() {
     []
   );
 
+  const isImageLoading =
+    selectedStudy.isDemo === true &&
+    selectedStudy.imageDataUrl === PLACEHOLDER_SVG_URL;
+
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[#0b0f1a]">
       <header className="flex items-center justify-between px-5 h-12 bg-[#0f1623] border-b border-slate-800/80 shrink-0">
@@ -480,30 +482,32 @@ export default function WorkstationView() {
             <span className="text-slate-100 font-semibold text-sm tracking-tight">FetalScan AI</span>
           </a>
           <span className="hidden sm:block text-xs text-slate-600 border-l border-slate-700/60 pl-3">
-            Fetal Head Circumference · Clinical Biometry
+            Fetal Head Circumference &middot; Clinical Biometry
           </span>
         </div>
         <div className="flex items-center gap-2">
-          {apiStatus === 'checking' && (
-            <span className="px-2 py-0.5 text-[10px] font-semibold bg-slate-700/40 border border-slate-600/30 text-slate-400 rounded uppercase tracking-wider">
-              API…
-            </span>
-          )}
-          {apiStatus === 'live' && (
-            <span data-testid="api-status-live" className="px-2 py-0.5 text-[10px] font-semibold bg-teal-500/10 border border-teal-500/30 text-teal-400 rounded uppercase tracking-wider">
-              API Live · {apiModelCount} model{apiModelCount !== 1 ? 's' : ''}
-            </span>
-          )}
-          {apiStatus === 'no-models' && (
-            <span data-testid="api-status-no-models" className="px-2 py-0.5 text-[10px] font-semibold bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded uppercase tracking-wider">
-              API · No models loaded
-            </span>
-          )}
-          {apiStatus === 'offline' && (
-            <span data-testid="api-status-offline" className="px-2 py-0.5 text-[10px] font-semibold bg-red-500/10 border border-red-500/30 text-red-400 rounded uppercase tracking-wider">
-              API Offline · Demo mode
-            </span>
-          )}
+          <div data-testid="api-status-banner" className="flex items-center">
+            {apiStatus === 'checking' && (
+              <span className="px-2 py-0.5 text-[10px] font-semibold bg-slate-700/40 border border-slate-600/30 text-slate-400 rounded uppercase tracking-wider animate-pulse">
+                API…
+              </span>
+            )}
+            {apiStatus === 'live' && (
+              <span data-testid="api-status-live" className="px-2 py-0.5 text-[10px] font-semibold bg-teal-500/10 border border-teal-500/30 text-teal-400 rounded uppercase tracking-wider">
+                API: Live ✓ &middot; {apiModelCount} model{apiModelCount !== 1 ? 's' : ''}
+              </span>
+            )}
+            {apiStatus === 'no-models' && (
+              <span data-testid="api-status-no-models" className="px-2 py-0.5 text-[10px] font-semibold bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded uppercase tracking-wider">
+                API &middot; No models loaded
+              </span>
+            )}
+            {apiStatus === 'offline' && (
+              <span data-testid="api-status-offline" className="px-2 py-0.5 text-[10px] font-semibold bg-red-500/10 border border-red-500/30 text-red-400 rounded uppercase tracking-wider">
+                API: Offline
+              </span>
+            )}
+          </div>
           <span className="px-2 py-0.5 text-[10px] font-semibold bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded uppercase tracking-wider">
             Demo
           </span>
@@ -518,8 +522,36 @@ export default function WorkstationView() {
         </div>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
-        <WorklistSidebar studies={studies} selectedId={selectedId} onSelect={id => { setSelectedId(id); setCompareResults(null); }} />
+      {apiStatus === 'offline' && (
+        <div className="px-5 py-2 bg-red-950/50 border-b border-red-900/40 shrink-0 flex items-center justify-center gap-3 flex-wrap">
+          <span className="text-[11px] text-red-300 font-semibold tracking-wide">
+            API: Offline &mdash; demo unavailable
+          </span>
+          <span className="text-[10px] text-red-400/70">
+            {apiCheckCount <= 1
+              ? 'HF Space may be cold-starting (~30–60 s)'
+              : 'Pre-baked fallback active · retrying every 30 s'}
+          </span>
+          <button
+            onClick={retryNow}
+            disabled={isRetrying}
+            className="text-[10px] px-2 py-0.5 bg-red-900/40 border border-red-700/40 text-red-300 hover:bg-red-800/60 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isRetrying ? 'Checking…' : 'Retry now'}
+          </button>
+        </div>
+      )}
+
+      {/* Main content: sidebar + viewer + findings */}
+      <div className="flex flex-1 overflow-hidden flex-col md:flex-row min-h-0">
+        {/* Desktop sidebar — hidden on mobile, shown in bottom sheet instead */}
+        <div className="hidden md:block shrink-0">
+          <WorklistSidebar
+            studies={studies}
+            selectedId={selectedId}
+            onSelect={id => { setSelectedId(id); setCompareResults(null); }}
+          />
+        </div>
 
         {compareResults !== null ? (
           <CompareView
@@ -530,27 +562,65 @@ export default function WorkstationView() {
           />
         ) : (
           <>
-            <StudyViewer
-              study={selectedStudy}
-              model={model}
-              onModelChange={setModel}
-              pixelSpacing={pixelSpacing}
-              onPixelSpacingChange={setPixelSpacing}
-              pixelSpacingSource={
-                selectedStudy.isDemo && selectedStudy.demoPixelSpacingMm != null ? 'CSV' : 'USER'
-              }
-              threshold={threshold}
-              onThresholdChange={setThreshold}
-              onImageLoad={handleImageLoad}
-              onAnalyze={handleAnalyze}
-              onCompare={handleCompare}
-              onFileChange={handleFileChange}
-              isDemo={selectedStudy.isDemo ?? false}
-            />
-            <AIFindingsPanel study={selectedStudy} model={model} onSaveReport={handleSaveReport} />
+            <div className={cn('min-h-0 flex-1', mobileTab === 'viewer' ? 'flex' : 'hidden md:flex')}>
+              <StudyViewer
+                study={selectedStudy}
+                model={model}
+                onModelChange={setModel}
+                pixelSpacing={pixelSpacing}
+                onPixelSpacingChange={setPixelSpacing}
+                pixelSpacingSource={
+                  selectedStudy.isDemo && selectedStudy.demoPixelSpacingMm != null ? 'CSV' : 'USER'
+                }
+                threshold={threshold}
+                onThresholdChange={setThreshold}
+                onImageLoad={handleImageLoad}
+                onAnalyze={handleAnalyze}
+                onCompare={handleCompare}
+                onFileChange={handleFileChange}
+                isDemo={selectedStudy.isDemo ?? false}
+                imageLoading={isImageLoading}
+              />
+            </div>
+            <div className={cn('min-h-0', mobileTab === 'findings' ? 'flex w-full md:w-auto' : 'hidden md:flex')}>
+              <AIFindingsPanel study={selectedStudy} model={model} onSaveReport={handleSaveReport} />
+            </div>
           </>
         )}
       </div>
+
+      {/* Mobile bottom navigation — Patients / Image / Findings tabs */}
+      {compareResults === null && (
+        <nav
+          className="flex md:hidden shrink-0 bg-[#0f1623] border-t border-slate-800"
+          style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+        >
+          <button
+            onClick={() => setMobileWorklistOpen(true)}
+            className="flex-1 py-3 text-xs font-semibold text-slate-400 hover:text-slate-200"
+          >
+            Patients
+          </button>
+          <button
+            onClick={() => setMobileTab('viewer')}
+            className={cn(
+              'flex-1 py-3 text-xs font-semibold',
+              mobileTab === 'viewer' ? 'text-[#0D7680]' : 'text-slate-400 hover:text-slate-200'
+            )}
+          >
+            Image
+          </button>
+          <button
+            onClick={() => setMobileTab('findings')}
+            className={cn(
+              'flex-1 py-3 text-xs font-semibold',
+              mobileTab === 'findings' ? 'text-[#0D7680]' : 'text-slate-400 hover:text-slate-200'
+            )}
+          >
+            Findings
+          </button>
+        </nav>
+      )}
 
       <ReportsTab
         isOpen={reportsOpen}
@@ -601,7 +671,7 @@ export default function WorkstationView() {
               ))}
             </div>
             <p className="text-[10px] text-slate-600 leading-tight">
-              Shortcuts are suppressed while you're typing in form fields.
+              Shortcuts are suppressed while you&apos;re typing in form fields.
             </p>
           </div>
         </div>
@@ -619,6 +689,43 @@ export default function WorkstationView() {
           onSubmit={handleSaveCombinedReport}
           onClose={() => setCombinedFormOpen(false)}
         />
+      )}
+
+      {/* Mobile worklist bottom sheet */}
+      {mobileWorklistOpen && (
+        <div
+          className="fixed inset-0 z-50 md:hidden flex flex-col justify-end bg-black/60 backdrop-blur-sm"
+          onClick={() => setMobileWorklistOpen(false)}
+        >
+          <div
+            className="bg-[#0f1623] rounded-t-2xl max-h-[75vh] flex flex-col"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="mx-auto mt-2 mb-1 w-10 h-1 rounded-full bg-slate-700" />
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-800">
+              <h2 className="text-sm font-semibold text-slate-200">Patients</h2>
+              <button
+                onClick={() => setMobileWorklistOpen(false)}
+                className="text-slate-500 hover:text-slate-300 p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="overflow-y-auto flex-1">
+              <WorklistSidebar
+                studies={studies}
+                selectedId={selectedId}
+                onSelect={id => {
+                  setSelectedId(id);
+                  setCompareResults(null);
+                  setMobileWorklistOpen(false);
+                  setMobileTab('viewer');
+                }}
+                className="w-full border-r-0"
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
