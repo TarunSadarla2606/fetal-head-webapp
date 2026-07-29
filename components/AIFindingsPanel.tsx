@@ -603,7 +603,8 @@ export default function AIFindingsPanel({ study, model, onSaveReport }: Props) {
                 </p>
                 {(model === 'phase2' || model === 'phase4b') && (
                   <p className="mt-2 text-amber-400/80 italic">
-                    Hint: {model} is a temporal (cine-loop) model and expects 16-frame input.
+                    Hint: {model} is a temporal model — it synthesises a 16-frame loop from the
+                    frame, so it is slower and needs more memory than the static variants.
                   </p>
                 )}
               </div>
