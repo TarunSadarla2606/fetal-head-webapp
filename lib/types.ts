@@ -29,11 +29,20 @@ export interface InferResponse {
   overlay_b64: string;
   /**
    * Animated GIF (`data:image/gif;base64,...`) of the predicted segmentation
-   * contour on every frame of the cine-loop. Present only when
+   * contour on every frame of the cine-loop, each frame labelled with its
+   * index and its own HC, with the key frame marked. Present only when
    * `mode === 'cine_clip'` (temporal variants phase2 / phase4b), and null if
    * the backend could not build the animation.
    */
   cine_overlay_gif?: string | null;
+  /** Raw synthesised cine-loop with no prediction drawn on it. Same nullability. */
+  cine_loop_gif?: string | null;
+  /** Per-frame HC in mm, aligned with frame index; null where unmeasurable. */
+  cine_per_frame_hc?: (number | null)[] | null;
+  /** Frames in the synthesised loop. */
+  cine_frame_count?: number | null;
+  /** Index of the frame `overlay_b64` is rendered from, marked in the GIF. */
+  cine_key_frame_index?: number | null;
 }
 
 export interface OodReason {
