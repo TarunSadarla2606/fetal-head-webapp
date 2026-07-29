@@ -125,6 +125,20 @@ check('WorkstationView imports getApiHealth', () => {
   if (!readFileSync('components/WorkstationView.tsx', 'utf8').includes('getApiHealth'))
     throw new Error('getApiHealth not imported — API status badge will always show "checking"');
 });
+check('lib/types.ts declares cine_overlay_gif on InferResponse', () => {
+  if (!readFileSync('lib/types.ts', 'utf8').includes('cine_overlay_gif'))
+    throw new Error('cine_overlay_gif missing — cine animation cannot be typed off the response');
+});
+check('AIFindingsPanel renders the cine overlay (data-testid=cine-overlay)', () => {
+  const src = readFileSync('components/AIFindingsPanel.tsx', 'utf8');
+  if (!src.includes('cine-overlay'))
+    throw new Error('no cine-overlay data-testid — the animated cine loop is never displayed');
+});
+check('cine overlay is gated on mode === cine_clip', () => {
+  const src = readFileSync('components/AIFindingsPanel.tsx', 'utf8');
+  if (!src.includes("mode !== 'cine_clip'"))
+    throw new Error('cine overlay not gated on mode — single-frame results would render it');
+});
 check('app/globals.css has teal brand colour', () => {
   if (!readFileSync('app/globals.css', 'utf8').includes('#0D7680'))
     throw new Error('brand colour missing');

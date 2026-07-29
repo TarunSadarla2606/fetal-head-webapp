@@ -457,6 +457,35 @@ function QualityBadge({
   );
 }
 
+/**
+ * Animated segmentation overlay for cine-clip runs.
+ *
+ * Renders only when the backend reports `mode === 'cine_clip'` AND ships a
+ * GIF, so single-frame results are untouched and an older backend (or one
+ * that failed to build the animation) simply shows nothing.
+ */
+function CineOverlay({ findings }: { findings: InferResponse }) {
+  const gif = findings.cine_overlay_gif;
+  if (findings.mode !== 'cine_clip' || !gif) return null;
+
+  return (
+    <div data-testid="cine-overlay" className="space-y-1">
+      <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-500">
+        Cine Loop
+      </p>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={gif}
+        alt="Predicted segmentation contour animated across the cine-loop frames"
+        className="w-full rounded border border-slate-700/60 block"
+      />
+      <p className="text-[10px] text-slate-500 leading-snug">
+        Segmentation overlay across the clip.
+      </p>
+    </div>
+  );
+}
+
 export default function AIFindingsPanel({ study, model, onSaveReport }: Props) {
   const f = study.findings;
   const isSynthetic = study.isSynthetic === true;
@@ -661,6 +690,8 @@ export default function AIFindingsPanel({ study, model, onSaveReport }: Props) {
               )}
 
               <ReliabilityBar value={f.reliability} />
+
+              <CineOverlay findings={f} />
 
               <div className={cn('text-[10px] text-slate-600 flex justify-between')}>
                 <span>Model: {model}{isSynthetic ? ' · synthetic' : ''}</span>
