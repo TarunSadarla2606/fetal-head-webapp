@@ -27,6 +27,13 @@ export interface InferResponse {
   ood_reasons: string[];
   mask_b64: string;
   overlay_b64: string;
+  /**
+   * Animated GIF (`data:image/gif;base64,...`) of the predicted segmentation
+   * contour on every frame of the cine-loop. Present only when
+   * `mode === 'cine_clip'` (temporal variants phase2 / phase4b), and null if
+   * the backend could not build the animation.
+   */
+  cine_overlay_gif?: string | null;
 }
 
 export interface OodReason {
