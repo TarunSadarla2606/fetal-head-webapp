@@ -3,10 +3,11 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import type { Study, ModelVariant } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { Upload, Play, Loader2, CheckCircle2, Info, FlaskConical, LayoutGrid, Image as ImageIcon, Sparkles, ChevronDown } from 'lucide-react';
+import { Upload, Play, Loader2, CheckCircle2, Info, FlaskConical, LayoutGrid, Image as ImageIcon, Sparkles, ChevronDown, Film } from 'lucide-react';
 import XAIPanel from './XAIPanel';
+import CineView from './CineView';
 
-type ViewerTab = 'image' | 'xai';
+type ViewerTab = 'image' | 'xai' | 'cine';
 
 const MODEL_OPTIONS: { value: ModelVariant; label: string }[] = [
   { value: 'phase0',  label: 'Standard · Single Frame' },
@@ -176,6 +177,17 @@ export default function StudyViewer({
   const isDone = study.status === 'done' && study.findings != null;
   const isSynthetic = study.isSynthetic === true;
   const isTemporal = TEMPORAL_MODELS.has(model);
+
+  // The cine tab needs a cine_clip result carrying at least one animation.
+  const hasCine =
+    study.findings?.mode === 'cine_clip' &&
+    Boolean(study.findings.cine_overlay_gif || study.findings.cine_loop_gif);
+
+  // Re-running with a static variant leaves the cine tab selected but empty;
+  // drop back to Image View rather than showing a blank panel.
+  useEffect(() => {
+    if (tab === 'cine' && !hasCine) setTab('image');
+  }, [tab, hasCine]);
   const canRun = !isAnalyzing && (isDemo || currentFile != null);
 
   return (
@@ -361,9 +373,26 @@ export default function StudyViewer({
           }
           testId="xai-tab"
         />
+        <TabButton
+          active={tab === 'cine'}
+          onClick={() => setTab('cine')}
+          icon={<Film className="w-3 h-3" />}
+          label="Cine Loop"
+          disabled={!hasCine}
+          disabledReason={
+            !isDone
+              ? 'Run AI with a Cine Loop model to generate the animation'
+              : isTemporal
+                ? 'No cine animation in this result'
+                : 'Select a Cine Loop model (Standard or Express) and re-run'
+          }
+          testId="cine-tab"
+        />
       </div>
 
-      {tab === 'xai' && isDone && !isSynthetic && study.findings?.finding_id ? (
+      {tab === 'cine' && hasCine && study.findings ? (
+        <CineView findings={study.findings} />
+      ) : tab === 'xai' && isDone && !isSynthetic && study.findings?.finding_id ? (
         <XAIPanel findingId={study.findings.finding_id} />
       ) : (
       <div
@@ -455,6 +484,10 @@ function TabButton({
   return (
     <button
       data-testid={testId}
+      // Actually disabled, not just styled that way — otherwise the greyed-out
+      // look is invisible to screen readers and to anything querying state.
+      disabled={disabled}
+      aria-disabled={disabled}
       onClick={() => { if (!disabled) onClick(); }}
       title={disabled ? disabledReason : label}
       className={cn(

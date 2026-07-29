@@ -55,10 +55,14 @@ test('cine mode renders the animated segmentation overlay', async ({ page }) => 
 
   await page.getByRole('button', { name: /Run AI/i }).click();
 
-  const overlay = page.getByTestId('cine-overlay');
-  await expect(overlay).toBeVisible();
+  // The sidebar points at the tab rather than embedding the animation.
+  await expect(page.getByTestId('cine-panel-pointer')).toBeVisible();
+
+  await page.getByTestId('cine-tab').click();
+  const view = page.getByTestId('cine-view');
+  await expect(view).toBeVisible();
   await expect(page.getByTestId('cine-gif')).toHaveAttribute('src', TINY_GIF);
-  await expect(overlay).toContainText('Segmentation overlay across the clip.');
+  await expect(view).toContainText('Segmentation overlay across the clip.');
 });
 
 test('single-frame mode does not render the cine overlay', async ({ page }) => {
@@ -74,7 +78,8 @@ test('single-frame mode does not render the cine overlay', async ({ page }) => {
   // Findings did populate — so absence below is the gate working, not a
   // run that never happened.
   await expect(page.getByTestId('quality-badge')).toBeVisible();
-  await expect(page.getByTestId('cine-overlay')).toHaveCount(0);
+  await expect(page.getByTestId('cine-panel-pointer')).toHaveCount(0);
+  await expect(page.getByTestId('cine-tab')).toBeDisabled();
 });
 
 test('cine mode with both GIFs null renders no overlay', async ({ page }) => {
@@ -89,7 +94,8 @@ test('cine mode with both GIFs null renders no overlay', async ({ page }) => {
   await page.getByRole('button', { name: /Run AI/i }).click();
 
   await expect(page.getByTestId('quality-badge')).toBeVisible();
-  await expect(page.getByTestId('cine-overlay')).toHaveCount(0);
+  await expect(page.getByTestId('cine-panel-pointer')).toHaveCount(0);
+  await expect(page.getByTestId('cine-tab')).toBeDisabled();
 });
 
 
@@ -99,7 +105,8 @@ test('cine mode toggles between the overlay and the raw loop', async ({ page }) 
   await expect(page.getByTestId('api-status-live')).toBeVisible();
   await page.getByRole('button', { name: /Run AI/i }).click();
 
-  const overlay = page.getByTestId('cine-overlay');
+  await page.getByTestId('cine-tab').click();
+  const overlay = page.getByTestId('cine-view');
   await expect(overlay).toBeVisible();
   await expect(overlay).toContainText('16 frames');
 
@@ -122,6 +129,7 @@ test('cine mode renders the HC stability sparkline, nulls and all', async ({ pag
   await expect(page.getByTestId('api-status-live')).toBeVisible();
   await page.getByRole('button', { name: /Run AI/i }).click();
 
+  await page.getByTestId('cine-tab').click();
   const spark = page.getByTestId('cine-hc-sparkline');
   await expect(spark).toBeVisible();
   // 246.0 - 244.9, with the null entry skipped rather than treated as 0.
@@ -136,7 +144,8 @@ test('no toggle when only the overlay GIF arrives', async ({ page }) => {
   await expect(page.getByTestId('api-status-live')).toBeVisible();
   await page.getByRole('button', { name: /Run AI/i }).click();
 
-  await expect(page.getByTestId('cine-overlay')).toBeVisible();
+  await page.getByTestId('cine-tab').click();
+  await expect(page.getByTestId('cine-view')).toBeVisible();
   await expect(page.getByTestId('cine-view-raw')).toHaveCount(0);
 });
 
@@ -148,8 +157,8 @@ test('raw loop alone still renders when the overlay could not be built', async (
   await expect(page.getByTestId('api-status-live')).toBeVisible();
   await page.getByRole('button', { name: /Run AI/i }).click();
 
-  const overlay = page.getByTestId('cine-overlay');
-  await expect(overlay).toBeVisible();
+  await page.getByTestId('cine-tab').click();
+  await expect(page.getByTestId('cine-view')).toBeVisible();
   await expect(page.getByTestId('cine-gif')).toHaveAttribute('src', TINY_GIF_2);
 });
 
@@ -161,6 +170,28 @@ test('sparkline is omitted when there is too little HC data to plot', async ({ p
   await expect(page.getByTestId('api-status-live')).toBeVisible();
   await page.getByRole('button', { name: /Run AI/i }).click();
 
-  await expect(page.getByTestId('cine-overlay')).toBeVisible();
+  await page.getByTestId('cine-tab').click();
+  await expect(page.getByTestId('cine-view')).toBeVisible();
   await expect(page.getByTestId('cine-hc-sparkline')).toHaveCount(0);
+});
+
+
+test('cine tab falls back to Image View when a re-run has no cine result', async ({ page }) => {
+  await installApiMocks(page, { inferResponse: cineInferResponse });
+  await page.goto('/app');
+  await expect(page.getByTestId('api-status-live')).toBeVisible();
+  await page.getByRole('button', { name: /Run AI/i }).click();
+
+  await page.getByTestId('cine-tab').click();
+  await expect(page.getByTestId('cine-view')).toBeVisible();
+
+  // Re-run returning single_frame must not leave an empty cine panel showing.
+  await installApiMocks(page, {
+    inferResponse: { ...cineInferResponse, mode: 'single_frame',
+                     cine_overlay_gif: null, cine_loop_gif: null },
+  });
+  await page.getByRole('button', { name: /Run AI/i }).click();
+
+  await expect(page.getByTestId('cine-view')).toHaveCount(0);
+  await expect(page.getByTestId('cine-tab')).toBeDisabled();
 });
