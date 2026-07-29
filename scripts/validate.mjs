@@ -129,15 +129,16 @@ check('lib/types.ts declares cine_overlay_gif on InferResponse', () => {
   if (!readFileSync('lib/types.ts', 'utf8').includes('cine_overlay_gif'))
     throw new Error('cine_overlay_gif missing — cine animation cannot be typed off the response');
 });
-check('AIFindingsPanel renders the cine overlay (data-testid=cine-overlay)', () => {
+check('AIFindingsPanel points at the Cine Loop tab', () => {
   const src = readFileSync('components/AIFindingsPanel.tsx', 'utf8');
-  if (!src.includes('cine-overlay'))
-    throw new Error('no cine-overlay data-testid — the animated cine loop is never displayed');
+  if (!src.includes('cine-panel-pointer'))
+    throw new Error('no cine-panel-pointer — nothing tells the user where the animation lives');
 });
-check('cine overlay is gated on mode === cine_clip', () => {
-  const src = readFileSync('components/AIFindingsPanel.tsx', 'utf8');
-  if (!src.includes("mode !== 'cine_clip'"))
-    throw new Error('cine overlay not gated on mode — single-frame results would render it');
+check('cine display is gated on mode === cine_clip', () => {
+  // The gate moved to StudyViewer when the animation became a central tab.
+  const src = readFileSync('components/StudyViewer.tsx', 'utf8');
+  if (!src.includes("mode === 'cine_clip'"))
+    throw new Error('cine tab not gated on mode — single-frame results would enable it');
 });
 check('lib/types.ts declares cine_loop_gif + cine_per_frame_hc', () => {
   const src = readFileSync('lib/types.ts', 'utf8');
@@ -145,17 +146,31 @@ check('lib/types.ts declares cine_loop_gif + cine_per_frame_hc', () => {
     if (!src.includes(f)) throw new Error(`${f} missing — cine panel cannot type it`);
   }
 });
-check('AIFindingsPanel offers the Overlay/Raw cine toggle', () => {
-  const src = readFileSync('components/AIFindingsPanel.tsx', 'utf8');
-  // testids are template-generated: data-testid={`cine-view-${m}`}
+check('components/CineView.tsx exists', () => {
+  if (!existsSync('components/CineView.tsx')) throw new Error('file missing');
+});
+check('CineView offers the Overlay/Raw toggle', () => {
+  const src = readFileSync('components/CineView.tsx', 'utf8');
+  // testids are template-generated: data-testid={`cine-view-${mode}`}
   if (!src.includes('cine-view-$'))
     throw new Error('cine view toggle testids missing — raw loop is unreachable');
   if (!src.includes('cine_loop_gif'))
     throw new Error('cine_loop_gif never read — the raw loop is never displayed');
 });
-check('AIFindingsPanel renders the HC stability sparkline', () => {
-  if (!readFileSync('components/AIFindingsPanel.tsx', 'utf8').includes('cine-hc-sparkline'))
+check('CineView renders the HC stability chart', () => {
+  if (!readFileSync('components/CineView.tsx', 'utf8').includes('cine-hc-sparkline'))
     throw new Error('cine-hc-sparkline missing — per-frame HC is not visualised');
+});
+check('StudyViewer exposes Cine Loop as a third central tab', () => {
+  const src = readFileSync('components/StudyViewer.tsx', 'utf8');
+  if (!src.includes('cine-tab')) throw new Error('no cine-tab — animation has no central home');
+  if (!src.includes("'cine'")) throw new Error("ViewerTab missing the 'cine' member");
+  if (!src.includes('CineView')) throw new Error('CineView never rendered');
+});
+check('StudyViewer tab buttons are genuinely disabled, not just styled', () => {
+  const src = readFileSync('components/StudyViewer.tsx', 'utf8');
+  if (!src.includes('disabled={disabled}'))
+    throw new Error('TabButton lacks the disabled attribute — state is invisible to a11y/tests');
 });
 check('StudyViewer no longer claims cine input is required', () => {
   const src = readFileSync('components/StudyViewer.tsx', 'utf8');
