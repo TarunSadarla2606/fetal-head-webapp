@@ -48,26 +48,42 @@ The model selector offers four backend variants. Two are **static**
 | `phase2` | Standard · Cine Loop | `cine_clip` |
 | `phase4b` | Express · Cine Loop | `cine_clip` |
 
-### Cine mode shows an animated segmentation overlay
+### Cine mode shows the animated loop
 
-When a temporal variant is selected, the backend expands the uploaded frame
-into a 16-frame cine-loop, runs the temporal model across the sequence, and
-returns an animated GIF of the predicted skull contour drawn on every frame.
+There is only ever **one kind of input — a static frame.** When a temporal
+variant is selected the backend synthesises a 16-frame cine-loop from it
+(Pseudo-LDDM v2: probe motion + speckle + depth attenuation) and runs the
+temporal model across the whole sequence. Nothing extra needs to be uploaded.
 
-The AI Findings panel renders it beneath the reliability bar, captioned
-*"Segmentation overlay across the clip."* — so the boundary can be watched
-tracking the head through probe motion, instead of being judged from a single
-still.
+The AI Findings panel renders three things beneath the reliability bar:
 
-The GIF arrives as a `data:` URI in the `cine_overlay_gif` field of
-`InferResponse` (`lib/types.ts`). Rendering is gated on **both**
-`mode === 'cine_clip'` **and** the field being present, so:
+| | |
+|---|---|
+| **Overlay / Raw toggle** | *Overlay* animates the predicted skull contour on every frame — each labelled with its position in the loop (`9/16`) and its **own HC**, with the frame the still view measures outlined in amber and tagged `KEY FRAME`. *Raw* is the same loop with nothing drawn on it, so the prediction can be judged against what the model actually saw. |
+| **HC stability sparkline** | Per-frame HC against the consensus (dashed red), with the spread in mm. This is what `reliability` is derived from, so a flat trace is the visible form of a high reliability score. |
+| **Caption** | Changes with the selected view. |
+
+Fields consumed from `InferResponse` (`lib/types.ts`): `cine_overlay_gif`,
+`cine_loop_gif`, `cine_per_frame_hc`, `cine_frame_count`,
+`cine_key_frame_index`.
+
+Rendering is gated on `mode === 'cine_clip'` **and** at least one GIF being
+present, so:
 
 - single-frame results are completely unaffected;
-- an older backend, or one that could not build the animation (`null`), simply
-  renders nothing rather than breaking the panel.
+- a backend that predates these fields, or that could not build an animation
+  (`null`), renders nothing rather than a broken image;
+- if only one of the two GIFs arrives, the panel pins to it instead of offering
+  a dead tab.
 
-Covered by `tests/e2e/cine-overlay.spec.ts` in all three directions.
+Covered by `tests/e2e/cine-overlay.spec.ts` (8 cases, including the
+one-GIF-only and too-little-HC-data paths).
+
+> **Requires a backend that returns these fields.** They ship from
+> `fetal-head-clinical-ai`, which deploys to a Hugging Face Space via that
+> repo's `deploy-hf.yml` workflow. Until the Space has that build, cine mode
+> shows the numbers with no animation — which is the `null` path above, not a
+> bug in this app.
 
 ## Layout
 

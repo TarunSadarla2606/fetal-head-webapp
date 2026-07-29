@@ -194,10 +194,10 @@ export default function StudyViewer({
         {isTemporal && (
           <span
             data-testid="temporal-model-hint"
-            className="flex items-center gap-1 text-[10px] text-amber-400/90 italic"
-            title="Temporal models expect 16-frame cine loops; current demo subjects are single frames."
+            className="flex items-center gap-1 text-[10px] text-slate-500 italic"
+            title="A 16-frame cine-loop is synthesised from this single frame with Pseudo-LDDM v2 (probe motion + speckle + depth attenuation), then the temporal model runs across the whole sequence."
           >
-            <Info className="w-3 h-3" /> cine input required
+            <Info className="w-3 h-3" /> 16-frame loop synthesised from this frame
           </span>
         )}
 

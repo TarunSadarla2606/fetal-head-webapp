@@ -458,30 +458,132 @@ function QualityBadge({
 }
 
 /**
- * Animated segmentation overlay for cine-clip runs.
+ * Per-frame HC stability sparkline.
  *
- * Renders only when the backend reports `mode === 'cine_clip'` AND ships a
- * GIF, so single-frame results are untouched and an older backend (or one
- * that failed to build the animation) simply shows nothing.
+ * The consensus HC is a single number; this shows how much it moved frame to
+ * frame, which is what `reliability` is actually derived from. A flat trace
+ * means the measurement held through probe motion.
  */
-function CineOverlay({ findings }: { findings: InferResponse }) {
-  const gif = findings.cine_overlay_gif;
-  if (findings.mode !== 'cine_clip' || !gif) return null;
+function HcStabilitySparkline({
+  values,
+  consensus,
+}: {
+  values: (number | null)[];
+  consensus: number | null;
+}) {
+  const pts = values
+    .map((v, i) => ({ v, i }))
+    .filter((p): p is { v: number; i: number } => p.v != null);
+  if (pts.length < 2) return null;
+
+  const W = 240;
+  const H = 34;
+  const measured = pts.map(p => p.v);
+  const lo = Math.min(...measured, consensus ?? Infinity);
+  const hi = Math.max(...measured, consensus ?? -Infinity);
+  // Pad a flat trace so it draws mid-height instead of on the edge.
+  const span = hi - lo < 0.05 ? 1 : hi - lo;
+  const mid = (lo + hi) / 2;
+  const yFor = (v: number) => H - 3 - ((v - (mid - span / 2)) / span) * (H - 6);
+  const xFor = (i: number) => (values.length < 2 ? 0 : (i / (values.length - 1)) * W);
+
+  const path = pts.map((p, k) => `${k === 0 ? 'M' : 'L'}${xFor(p.i).toFixed(1)},${yFor(p.v).toFixed(1)}`).join(' ');
+  const spread = Math.max(...measured) - Math.min(...measured);
 
   return (
-    <div data-testid="cine-overlay" className="space-y-1">
-      <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-500">
-        Cine Loop
-      </p>
+    <div data-testid="cine-hc-sparkline" className="space-y-0.5">
+      <div className="flex justify-between text-[9px] text-slate-500">
+        <span>HC per frame</span>
+        <span className="font-mono">spread {spread.toFixed(1)} mm</span>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full block" role="img"
+           aria-label={`Head circumference per frame, spread ${spread.toFixed(1)} millimetres`}>
+        {consensus != null && (
+          <line x1={0} x2={W} y1={yFor(consensus)} y2={yFor(consensus)}
+                stroke="#dc2626" strokeWidth={1} strokeDasharray="3 2" />
+        )}
+        <path d={path} fill="none" stroke="#0D7680" strokeWidth={1.5}
+              strokeLinejoin="round" strokeLinecap="round" />
+        {pts.map(p => (
+          <circle key={p.i} cx={xFor(p.i)} cy={yFor(p.v)} r={1.6} fill="#5cd5dc" />
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+/**
+ * Cine-clip visualisation: the animated loop plus per-frame HC stability.
+ *
+ * Renders only when the backend reports `mode === 'cine_clip'` AND ships at
+ * least one GIF, so single-frame results are untouched and an older backend
+ * (or one that failed to build the animation) simply shows nothing.
+ */
+function CineOverlay({ findings }: { findings: InferResponse }) {
+  const overlayGif = findings.cine_overlay_gif;
+  const loopGif = findings.cine_loop_gif;
+  const [view, setView] = useState<'overlay' | 'raw'>('overlay');
+
+  if (findings.mode !== 'cine_clip' || (!overlayGif && !loopGif)) return null;
+
+  // If only one of the two arrived, pin to it rather than offering a dead tab.
+  const canToggle = Boolean(overlayGif && loopGif);
+  const showing = canToggle ? view : overlayGif ? 'overlay' : 'raw';
+  const src = showing === 'overlay' ? overlayGif : loopGif;
+  const frames = findings.cine_frame_count;
+
+  return (
+    <div data-testid="cine-overlay" className="space-y-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-500">
+          Cine Loop{frames ? ` · ${frames} frames` : ''}
+        </p>
+        {canToggle && (
+          <div className="flex rounded overflow-hidden border border-slate-700">
+            {(['overlay', 'raw'] as const).map(m => (
+              <button
+                key={m}
+                onClick={() => setView(m)}
+                data-testid={`cine-view-${m}`}
+                aria-pressed={showing === m}
+                className={cn(
+                  'px-1.5 py-0.5 text-[9px] font-semibold transition-colors',
+                  showing === m
+                    ? 'bg-[#0D7680] text-white'
+                    : 'text-slate-500 hover:text-slate-300',
+                )}
+              >
+                {m === 'overlay' ? 'Overlay' : 'Raw'}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={gif}
-        alt="Predicted segmentation contour animated across the cine-loop frames"
-        className="w-full rounded border border-slate-700/60 block"
+        data-testid="cine-gif"
+        src={src ?? undefined}
+        alt={
+          showing === 'overlay'
+            ? 'Predicted segmentation contour animated across the cine-loop frames'
+            : 'Raw synthesised cine-loop with no prediction drawn on it'
+        }
+        className="w-full rounded border border-slate-700/60 block bg-black"
       />
+
       <p className="text-[10px] text-slate-500 leading-snug">
-        Segmentation overlay across the clip.
+        {showing === 'overlay'
+          ? 'Segmentation overlay across the clip. Each frame shows its own HC; the amber frame is the one measured in the still view.'
+          : 'The synthesised loop as the model received it — no prediction drawn.'}
       </p>
+
+      {findings.cine_per_frame_hc && (
+        <HcStabilitySparkline
+          values={findings.cine_per_frame_hc}
+          consensus={findings.hc_mm}
+        />
+      )}
     </div>
   );
 }
@@ -603,7 +705,8 @@ export default function AIFindingsPanel({ study, model, onSaveReport }: Props) {
                 </p>
                 {(model === 'phase2' || model === 'phase4b') && (
                   <p className="mt-2 text-amber-400/80 italic">
-                    Hint: {model} is a temporal (cine-loop) model and expects 16-frame input.
+                    Hint: {model} is a temporal model — it synthesises a 16-frame loop from the
+                    frame, so it is slower and needs more memory than the static variants.
                   </p>
                 )}
               </div>

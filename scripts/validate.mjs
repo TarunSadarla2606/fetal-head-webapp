@@ -139,6 +139,29 @@ check('cine overlay is gated on mode === cine_clip', () => {
   if (!src.includes("mode !== 'cine_clip'"))
     throw new Error('cine overlay not gated on mode — single-frame results would render it');
 });
+check('lib/types.ts declares cine_loop_gif + cine_per_frame_hc', () => {
+  const src = readFileSync('lib/types.ts', 'utf8');
+  for (const f of ['cine_loop_gif', 'cine_per_frame_hc', 'cine_frame_count']) {
+    if (!src.includes(f)) throw new Error(`${f} missing — cine panel cannot type it`);
+  }
+});
+check('AIFindingsPanel offers the Overlay/Raw cine toggle', () => {
+  const src = readFileSync('components/AIFindingsPanel.tsx', 'utf8');
+  // testids are template-generated: data-testid={`cine-view-${m}`}
+  if (!src.includes('cine-view-$'))
+    throw new Error('cine view toggle testids missing — raw loop is unreachable');
+  if (!src.includes('cine_loop_gif'))
+    throw new Error('cine_loop_gif never read — the raw loop is never displayed');
+});
+check('AIFindingsPanel renders the HC stability sparkline', () => {
+  if (!readFileSync('components/AIFindingsPanel.tsx', 'utf8').includes('cine-hc-sparkline'))
+    throw new Error('cine-hc-sparkline missing — per-frame HC is not visualised');
+});
+check('StudyViewer no longer claims cine input is required', () => {
+  const src = readFileSync('components/StudyViewer.tsx', 'utf8');
+  if (/cine input required/i.test(src))
+    throw new Error('stale "cine input required" copy — the loop is synthesised, not supplied');
+});
 check('app/globals.css has teal brand colour', () => {
   if (!readFileSync('app/globals.css', 'utf8').includes('#0D7680'))
     throw new Error('brand colour missing');
