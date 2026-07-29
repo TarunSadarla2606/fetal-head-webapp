@@ -27,8 +27,10 @@ test('happy path — landing → run → save → export links visible', async (
   // 5. AI Findings — quality badge + HC value visible
   await expect(page.getByTestId('quality-badge')).toBeVisible();
   await expect(page.getByTestId('quality-badge')).toHaveAttribute('data-quality-label', 'excellent');
-  // HC mm rendered in the metric tile
-  await expect(page.locator('text=245.3')).toBeVisible();
+  // HC mm rendered in the metric tile. Scoped to an exact-match paragraph:
+  // a bare `text=245.3` also hits the worklist row ("HC 245.3 mm") and the
+  // HC18 validation span, which trips strict mode.
+  await expect(page.getByRole('paragraph').filter({ hasText: /^245\.3 mm$/ })).toBeVisible();
 
   // 6. Save to Reports
   await page.getByTestId('open-report-form').click();
