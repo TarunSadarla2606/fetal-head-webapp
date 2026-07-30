@@ -275,6 +275,12 @@ export interface AskResponse {
   grounded: boolean;
   /** False when the answer came from a fallback (no API key, or the call failed). */
   used_llm: boolean;
+  /**
+   * Why the model call failed, when it did. Null when it succeeded or was never
+   * attempted (no key, nothing retrieved). Server-side redacted. Shown verbatim:
+   * "generation failed" with no reason is not something anyone can act on.
+   */
+  llm_error?: string | null;
   any_provisional: boolean;
   disclaimer: string;
 }

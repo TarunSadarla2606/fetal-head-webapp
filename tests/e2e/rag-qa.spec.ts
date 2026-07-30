@@ -102,6 +102,25 @@ test('the excerpts-only fallback is labelled when no answer was generated', asyn
   await expect(page.getByTestId('ask-chunk')).toHaveCount(DEFAULT_ASK_RESPONSE.chunks.length);
 });
 
+test('when generation fails the reason is shown, not just that it failed', async ({ page }) => {
+  // "Answer generation failed" with no reason is undiagnosable — the whole
+  // point of plumbing llm_error through is that the cause reaches the screen.
+  await installApiMocks(page, {
+    askResponse: {
+      ...DEFAULT_ASK_RESPONSE,
+      used_llm: false,
+      citations: [],
+      llm_error: 'AuthenticationError: invalid x-api-key',
+    },
+  });
+  await runAnalysis(page);
+  await page.getByTestId('ask-tab').click();
+  await page.getByTestId('ask-input').fill('How reliable is this measurement?');
+  await page.getByTestId('ask-submit').click();
+
+  await expect(page.getByTestId('ask-llm-error')).toContainText('invalid x-api-key');
+});
+
 test('a failed request surfaces an error instead of a blank panel', async ({ page }) => {
   await installApiMocks(page, { askStatus: 404 });
   await runAnalysis(page);

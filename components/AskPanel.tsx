@@ -191,10 +191,20 @@ export default function AskPanel({ findingId }: { findingId: string }) {
             </div>
 
             {!result.used_llm && result.grounded && (
-              <p data-testid="ask-fallback-note" className="text-[10px] text-amber-400/80 italic">
-                Generated answer unavailable — the retrieved reference sections are shown
-                below and can be read directly.
-              </p>
+              <div data-testid="ask-fallback-note" className="space-y-1">
+                <p className="text-[10px] text-amber-400/80 italic">
+                  Generated answer unavailable — the retrieved reference sections are shown
+                  below and can be read directly.
+                </p>
+                {result.llm_error && (
+                  <p
+                    data-testid="ask-llm-error"
+                    className="text-[10px] font-mono text-amber-300/70 break-all"
+                  >
+                    Reason: {result.llm_error}
+                  </p>
+                )}
+              </div>
             )}
 
             {result.chunks.length > 0 && (
