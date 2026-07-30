@@ -3,11 +3,12 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import type { Study, ModelVariant } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { Upload, Play, Loader2, CheckCircle2, Info, FlaskConical, LayoutGrid, Image as ImageIcon, Sparkles, ChevronDown, Film } from 'lucide-react';
+import { Upload, Play, Loader2, CheckCircle2, Info, FlaskConical, LayoutGrid, Image as ImageIcon, Sparkles, ChevronDown, Film, BookOpen } from 'lucide-react';
 import XAIPanel from './XAIPanel';
 import CineView from './CineView';
+import AskPanel from './AskPanel';
 
-type ViewerTab = 'image' | 'xai' | 'cine';
+type ViewerTab = 'image' | 'xai' | 'cine' | 'ask';
 
 const MODEL_OPTIONS: { value: ModelVariant; label: string }[] = [
   { value: 'phase0',  label: 'Standard · Single Frame' },
@@ -183,11 +184,16 @@ export default function StudyViewer({
     study.findings?.mode === 'cine_clip' &&
     Boolean(study.findings.cine_overlay_gif || study.findings.cine_loop_gif);
 
+  // Q&A grounds answers in this measurement, so it needs the same live
+  // finding_id the XAI overlays do.
+  const canAsk = isDone && !isSynthetic && Boolean(study.findings?.finding_id);
+
   // Re-running with a static variant leaves the cine tab selected but empty;
   // drop back to Image View rather than showing a blank panel.
   useEffect(() => {
     if (tab === 'cine' && !hasCine) setTab('image');
-  }, [tab, hasCine]);
+    if (tab === 'ask' && !canAsk) setTab('image');
+  }, [tab, hasCine, canAsk]);
   const canRun = !isAnalyzing && (isDemo || currentFile != null);
 
   return (
@@ -388,9 +394,26 @@ export default function StudyViewer({
           }
           testId="cine-tab"
         />
+        <TabButton
+          active={tab === 'ask'}
+          onClick={() => setTab('ask')}
+          icon={<BookOpen className="w-3 h-3" />}
+          label="Ask"
+          disabled={!canAsk}
+          disabledReason={
+            !isDone
+              ? 'Run AI to ask questions about the result'
+              : isSynthetic
+                ? 'Q&A unavailable in synthetic mode'
+                : 'No finding_id'
+          }
+          testId="ask-tab"
+        />
       </div>
 
-      {tab === 'cine' && hasCine && study.findings ? (
+      {tab === 'ask' && canAsk && study.findings?.finding_id ? (
+        <AskPanel findingId={study.findings.finding_id} />
+      ) : tab === 'cine' && hasCine && study.findings ? (
         <CineView findings={study.findings} />
       ) : tab === 'xai' && isDone && !isSynthetic && study.findings?.finding_id ? (
         <XAIPanel findingId={study.findings.finding_id} />

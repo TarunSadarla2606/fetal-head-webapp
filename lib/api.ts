@@ -1,5 +1,6 @@
 import type {
   ApiAuditEntry,
+  AskResponse,
   ApiReport,
   CreateCombinedReportPayload,
   CreateReportPayload,
@@ -243,4 +244,21 @@ export async function getReportAudit(
   });
   if (!res.ok) return [];
   return (await res.json()) as ApiAuditEntry[];
+}
+
+// ─── Retrieval-grounded Q&A ───────────────────────────────────────────────────
+
+/** Ask a question about a finding. The answer is grounded in retrieved
+ *  reference chunks, which come back alongside it so it can be audited. */
+export async function askAboutFinding(
+  findingId: string,
+  question: string,
+  apiKey?: string,
+): Promise<AskResponse> {
+  const res = await fetch(`${API_BASE}/findings/${encodeURIComponent(findingId)}/ask`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(apiKey) },
+    body: JSON.stringify({ question }),
+  });
+  return jsonOrThrow<AskResponse>(res, 'Failed to answer the question');
 }

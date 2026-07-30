@@ -13,10 +13,49 @@ const PIXEL_PNG_BYTES = Buffer.from(
   'base64',
 );
 
+export const DEFAULT_ASK_RESPONSE = {
+  finding_id: 'fnd_e2e_test',
+  question: 'How reliable is this measurement?',
+  answer:
+    'Reliability is the inter-frame agreement of HC across the loop ' +
+    '[project_metrics.md § Temporal reliability score — definition]. It is a precision ' +
+    'statistic, not an accuracy one.',
+  citations: ['project_metrics.md § Temporal reliability score — definition'],
+  chunks: [
+    {
+      citation: 'project_metrics.md § Temporal reliability score — definition',
+      source_file: 'project_metrics.md',
+      heading: 'Temporal reliability score — definition',
+      text: 'reliability = max(0, 1 - std(per_frame_HC) / mean(per_frame_HC))',
+      score: 0.175,
+      provisional: false,
+      source_note: 'Source: app/inference.py::predict_cine_clip',
+    },
+    {
+      citation: 'isuog_hc_measurement.md § Interobserver variability in fetal biometry',
+      source_file: 'isuog_hc_measurement.md',
+      heading: 'Interobserver variability in fetal biometry',
+      text: 'Fetal biometric measurements carry measurement error.',
+      score: 0.09,
+      provisional: true,
+      source_note: null,
+    },
+  ],
+  grounded: true,
+  used_llm: true,
+  any_provisional: true,
+  disclaimer:
+    'For demonstration purposes only — not cleared for clinical diagnosis.',
+};
+
 export interface MockOptions {
   // /infer payload for the happy path; OOD path overrides this with a
   // poor-quality / ood_flag=true response.
   inferResponse?: Record<string, unknown>;
+  // Q&A answer for POST /findings/{id}/ask.
+  askResponse?: Record<string, unknown>;
+  // Force the ask endpoint to fail, to exercise the error path.
+  askStatus?: number;
 }
 
 const baseInfer = {
@@ -95,6 +134,7 @@ const baseReport = {
 
 export async function installApiMocks(page: Page, opts: MockOptions = {}): Promise<void> {
   const inferResponse = opts.inferResponse ?? baseInfer;
+  const askResponse = opts.askResponse ?? DEFAULT_ASK_RESPONSE;
   let createdReport: typeof baseReport | null = null;
 
   await page.route(`https://${API_HOST}/**`, async (route: Route) => {
@@ -152,6 +192,22 @@ export async function installApiMocks(page: Page, opts: MockOptions = {}): Promi
     }
 
     // Reports list (per-study) — returns the created report after creation
+    // Retrieval-grounded Q&A
+    if (/^\/findings\/[^/]+\/ask$/.test(path) && method === 'POST') {
+      if (opts.askStatus && opts.askStatus >= 400) {
+        return route.fulfill({
+          status: opts.askStatus,
+          contentType: 'application/json',
+          body: JSON.stringify({ detail: 'Finding not found or expired' }),
+        });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(askResponse),
+      });
+    }
+
     if (/^\/studies\/[^/]+\/reports$/.test(path)) {
       if (method === 'POST') {
         createdReport = { ...baseReport, study_id: path.split('/')[2] };
