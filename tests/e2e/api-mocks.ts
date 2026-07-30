@@ -49,6 +49,38 @@ export const DEFAULT_ASK_RESPONSE = {
     'For demonstration purposes only — not cleared for clinical diagnosis.',
 };
 
+export const DEFAULT_ESCALATION_RESPONSE = {
+  finding_id: 'fnd_e2e_test',
+  decision: 'ACCEPT',
+  badge_color: 'green',
+  rationale:
+    'The frames agree closely (reliability 0.995, HC spread 0.80 mm, both within the ' +
+    'accept thresholds).',
+  justification:
+    'This measurement was accepted because head circumference varied by only 0.80 mm ' +
+    'across the clip, well inside the consistency threshold.',
+  justification_error: null,
+  used_llm: true,
+  signals: {
+    mode: 'cine_clip',
+    hc_mm: 245.3,
+    reliability: 0.995,
+    hc_std_mm: 0.8,
+    hc_range_mm: 2.1,
+    measurable_frames: 16,
+    has_consistency_signal: true,
+  },
+  tool_calls: [],
+  thresholds: {
+    reliability_accept_min: 0.97,
+    reliability_flag_below: 0.92,
+    hc_std_accept_max_mm: 2.0,
+    hc_std_flag_above_mm: 5.0,
+    checkpoint_agreement_max_mm: 3.0,
+  },
+  disclaimer: 'For demonstration purposes only — not cleared for clinical diagnosis.',
+};
+
 export interface MockOptions {
   // /infer payload for the happy path; OOD path overrides this with a
   // poor-quality / ood_flag=true response.
@@ -57,6 +89,10 @@ export interface MockOptions {
   askResponse?: Record<string, unknown>;
   // Force the ask endpoint to fail, to exercise the error path.
   askStatus?: number;
+  // Reliability verdict for POST /findings/{id}/escalate.
+  escalationResponse?: Record<string, unknown>;
+  // Force the escalation endpoint to fail, to exercise the error path.
+  escalationStatus?: number;
 }
 
 const baseInfer = {
@@ -136,6 +172,7 @@ const baseReport = {
 export async function installApiMocks(page: Page, opts: MockOptions = {}): Promise<void> {
   const inferResponse = opts.inferResponse ?? baseInfer;
   const askResponse = opts.askResponse ?? DEFAULT_ASK_RESPONSE;
+  const escalationResponse = opts.escalationResponse ?? DEFAULT_ESCALATION_RESPONSE;
   let createdReport: typeof baseReport | null = null;
 
   await page.route(`https://${API_HOST}/**`, async (route: Route) => {
@@ -206,6 +243,22 @@ export async function installApiMocks(page: Page, opts: MockOptions = {}): Promi
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify(askResponse),
+      });
+    }
+
+    // Agentic reliability escalation
+    if (/^\/findings\/[^/]+\/escalate$/.test(path) && method === 'POST') {
+      if (opts.escalationStatus && opts.escalationStatus >= 400) {
+        return route.fulfill({
+          status: opts.escalationStatus,
+          contentType: 'application/json',
+          body: JSON.stringify({ detail: 'Finding not found or expired' }),
+        });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(escalationResponse),
       });
     }
 

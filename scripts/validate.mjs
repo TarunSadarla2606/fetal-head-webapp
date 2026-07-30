@@ -206,6 +206,31 @@ check('StudyViewer exposes Ask as a viewer tab gated on finding_id', () => {
   if (!src.includes('ask-tab')) throw new Error('no ask-tab');
   if (!src.includes('canAsk')) throw new Error('Ask tab not gated on a live finding_id');
 });
+check('components/EscalationBadge.tsx exists', () => {
+  if (!existsSync('components/EscalationBadge.tsx')) throw new Error('file missing');
+});
+check('EscalationBadge renders the verdict as a machine-readable decision', () => {
+  const src = readFileSync('components/EscalationBadge.tsx', 'utf8');
+  if (!src.includes('data-decision'))
+    throw new Error('no data-decision attribute — the verdict is colour-only, untestable');
+  if (!src.includes('result.justification ?? result.rationale'))
+    throw new Error('no fallback to the rule-based rationale — a failed LLM would blank the panel');
+});
+check('EscalationBadge exposes the thresholds behind the verdict', () => {
+  const src = readFileSync('components/EscalationBadge.tsx', 'utf8');
+  if (!src.includes('result.thresholds'))
+    throw new Error('thresholds never rendered — the verdict cannot be recomputed by a reader');
+});
+check('lib/api.ts exports escalateFinding', () => {
+  if (!readFileSync('lib/api.ts', 'utf8').includes('export async function escalateFinding'))
+    throw new Error('escalateFinding not exported — the reliability check cannot reach the API');
+});
+check('AIFindingsPanel gates the badge on a real server-held finding', () => {
+  const src = readFileSync('components/AIFindingsPanel.tsx', 'utf8');
+  if (!src.includes('EscalationBadge')) throw new Error('EscalationBadge never rendered');
+  if (!src.includes('!study.isSynthetic && f.finding_id'))
+    throw new Error('badge not gated — synthetic demo studies have no finding to escalate');
+});
 check('app/globals.css has teal brand colour', () => {
   if (!readFileSync('app/globals.css', 'utf8').includes('#0D7680'))
     throw new Error('brand colour missing');

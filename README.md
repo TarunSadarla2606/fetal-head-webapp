@@ -119,6 +119,35 @@ If every question comes back as a fallback, read the reason line, then hit
 is present, whether a live call succeeds, and what to do about the specific
 error.
 
+### Agentic reliability check
+
+Under the reliability bar in AI Findings sits the system's verdict on its **own**
+output, from `POST /findings/{id}/escalate` (`components/EscalationBadge.tsx`):
+
+| Badge | Meaning |
+|---|---|
+| 🟢 **ACCEPT** | Frames agree; the number stands. |
+| 🟠 **RE-CHECKING** | Borderline — the agent re-ran the paired checkpoint. |
+| 🔴 **FLAG FOR REVIEW** | Sonographer confirmation or a repeat clip is recommended. |
+
+It runs automatically once a real finding exists. A check you have to remember
+to click is not an abstention mechanism, it is an optional extra — and the cost
+is bounded, because the agent only re-runs inference when the signal is
+genuinely borderline.
+
+The explanation underneath is the model's phrasing when available and the
+rule-based rationale when not: **the verdict never depends on the LLM**, so
+neither does the panel. A failed call shows the reason and keeps the verdict.
+
+"Show evidence and thresholds" expands the signals the decision was made from,
+every tool the agent invoked with its result, and the constants in force — so a
+reader can recompute the verdict rather than take it on trust.
+
+Gated on `!study.isSynthetic && finding_id`, the same gate XAI and Ask use.
+
+Covered by `tests/e2e/escalation.spec.ts` (6 cases, including the flagged,
+tool-use, LLM-unavailable and request-failure paths).
+
 ## Layout
 
 ```
