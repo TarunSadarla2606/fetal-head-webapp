@@ -104,14 +104,20 @@ What the panel shows, and why:
 | **Cited highlighting** | Chunks the answer actually used are outlined; the rest were retrieved but unused. |
 | **Ungrounded banner** | When retrieval found nothing, the question was *declined* — the model was never called. |
 | **Provisional banner** | A cited reference section is not yet verbatim-sourced. |
+| **Failure reason** | When generation fails, the actual error (`llm_error`) is printed under the fallback note. "Answer generation failed" alone is undiagnosable — you cannot tell a bad API key from an exhausted quota from a network block. |
 | **Disclaimer** | Rendered from the API response, not hardcoded. |
 
 The tab is disabled until a real (non-synthetic) `finding_id` exists, the same
 gate the XAI tab uses. Since findings are held in memory server-side, a
 container restart invalidates them — re-run the analysis to ask again.
 
-Covered by `tests/e2e/rag-qa.spec.ts` (9 cases, including the declined,
-fallback and request-failure paths).
+Covered by `tests/e2e/rag-qa.spec.ts` (10 cases, including the declined,
+fallback, failure-reason and request-failure paths).
+
+If every question comes back as a fallback, read the reason line, then hit
+`GET /llm/status` on the backend Space — it reports whether `ANTHROPIC_API_KEY`
+is present, whether a live call succeeds, and what to do about the specific
+error.
 
 ## Layout
 

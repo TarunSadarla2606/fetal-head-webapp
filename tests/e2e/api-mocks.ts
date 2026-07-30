@@ -43,6 +43,7 @@ export const DEFAULT_ASK_RESPONSE = {
   ],
   grounded: true,
   used_llm: true,
+  llm_error: null,
   any_provisional: true,
   disclaimer:
     'For demonstration purposes only — not cleared for clinical diagnosis.',
