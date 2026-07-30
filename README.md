@@ -88,6 +88,31 @@ Covered by `tests/e2e/cine-overlay.spec.ts` (9 cases).
 > `fetal-head-clinical-ai`, which deploys to a Hugging Face Space via that
 > repo's `deploy-hf.yml` workflow.
 
+### RAG Q&A — "Ask about this result"
+
+An **Ask** viewer tab (fourth, beside Image View / XAI / Cine Loop) lets you ask
+free-text questions about the current measurement. Answers come from
+`POST /findings/{id}/ask` and are grounded in the backend's curated reference
+material plus that measurement's numbers.
+
+What the panel shows, and why:
+
+| | |
+|---|---|
+| **Answer** | Prose with inline `[file.md § Heading]` citations. |
+| **Reference material supplied to the model** | Every retrieved chunk, expandable to its **full verbatim text**, with its similarity score. A citation label alone is only a claim about sourcing — showing the text is what makes the answer checkable. |
+| **Cited highlighting** | Chunks the answer actually used are outlined; the rest were retrieved but unused. |
+| **Ungrounded banner** | When retrieval found nothing, the question was *declined* — the model was never called. |
+| **Provisional banner** | A cited reference section is not yet verbatim-sourced. |
+| **Disclaimer** | Rendered from the API response, not hardcoded. |
+
+The tab is disabled until a real (non-synthetic) `finding_id` exists, the same
+gate the XAI tab uses. Since findings are held in memory server-side, a
+container restart invalidates them — re-run the analysis to ask again.
+
+Covered by `tests/e2e/rag-qa.spec.ts` (9 cases, including the declined,
+fallback and request-failure paths).
+
 ## Layout
 
 ```

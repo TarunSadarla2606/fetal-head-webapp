@@ -177,6 +177,35 @@ check('StudyViewer no longer claims cine input is required', () => {
   if (/cine input required/i.test(src))
     throw new Error('stale "cine input required" copy — the loop is synthesised, not supplied');
 });
+check('components/AskPanel.tsx exists', () => {
+  if (!existsSync('components/AskPanel.tsx')) throw new Error('file missing');
+});
+check('AskPanel surfaces the retrieved chunks, not just the answer', () => {
+  const src = readFileSync('components/AskPanel.tsx', 'utf8');
+  if (!src.includes('ask-chunk'))
+    throw new Error('no ask-chunk testid — an answer with no visible evidence is unauditable');
+  if (!src.includes('chunk.text'))
+    throw new Error('chunk text never rendered — citations alone are just a claim about sourcing');
+});
+check('AskPanel flags ungrounded and provisional answers', () => {
+  const src = readFileSync('components/AskPanel.tsx', 'utf8');
+  for (const id of ['ask-ungrounded-banner', 'ask-provisional-banner']) {
+    if (!src.includes(id)) throw new Error(`${id} missing — grounding state is invisible`);
+  }
+});
+check('AskPanel renders the disclaimer from the API response', () => {
+  if (!readFileSync('components/AskPanel.tsx', 'utf8').includes('result.disclaimer'))
+    throw new Error('disclaimer not rendered');
+});
+check('lib/api.ts exports askAboutFinding', () => {
+  if (!readFileSync('lib/api.ts', 'utf8').includes('export async function askAboutFinding'))
+    throw new Error('askAboutFinding not exported — Q&A cannot reach the API');
+});
+check('StudyViewer exposes Ask as a viewer tab gated on finding_id', () => {
+  const src = readFileSync('components/StudyViewer.tsx', 'utf8');
+  if (!src.includes('ask-tab')) throw new Error('no ask-tab');
+  if (!src.includes('canAsk')) throw new Error('Ask tab not gated on a live finding_id');
+});
 check('app/globals.css has teal brand colour', () => {
   if (!readFileSync('app/globals.css', 'utf8').includes('#0D7680'))
     throw new Error('brand colour missing');

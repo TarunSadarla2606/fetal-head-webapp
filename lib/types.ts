@@ -248,3 +248,33 @@ export interface SignReportPayload {
   signed_by: string;
   signoff_note?: string;
 }
+
+// ─── Retrieval-grounded Q&A ───────────────────────────────────────────────────
+
+/** One reference chunk the answer was grounded in. */
+export interface RetrievedChunk {
+  citation: string;
+  source_file: string;
+  heading: string;
+  /** The chunk text the model was given, verbatim — shown so the answer can be checked. */
+  text: string;
+  score: number;
+  /** Reference text not yet verified against the primary source. */
+  provisional: boolean;
+  source_note?: string | null;
+}
+
+export interface AskResponse {
+  finding_id: string;
+  question: string;
+  answer: string;
+  /** Citations the answer actually used, not everything retrieved. */
+  citations: string[];
+  chunks: RetrievedChunk[];
+  /** False when retrieval found nothing — the model is not called and the answer is a refusal. */
+  grounded: boolean;
+  /** False when the answer came from a fallback (no API key, or the call failed). */
+  used_llm: boolean;
+  any_provisional: boolean;
+  disclaimer: string;
+}
