@@ -4,6 +4,7 @@ import type {
   ApiReport,
   CreateCombinedReportPayload,
   CreateReportPayload,
+  EscalationResponse,
   InferResponse,
   ModelVariant,
   OodReport,
@@ -261,4 +262,21 @@ export async function askAboutFinding(
     body: JSON.stringify({ question }),
   });
   return jsonOrThrow<AskResponse>(res, 'Failed to answer the question');
+}
+
+/**
+ * Ask the backend whether this measurement can be trusted.
+ *
+ * May be slow: when the reliability signal is borderline the agent re-runs
+ * inference against the paired checkpoint before answering.
+ */
+export async function escalateFinding(
+  findingId: string,
+  apiKey?: string,
+): Promise<EscalationResponse> {
+  const res = await fetch(`${API_BASE}/findings/${encodeURIComponent(findingId)}/escalate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(apiKey) },
+  });
+  return jsonOrThrow<EscalationResponse>(res, 'Failed to run the reliability check');
 }

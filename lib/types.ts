@@ -284,3 +284,38 @@ export interface AskResponse {
   any_provisional: boolean;
   disclaimer: string;
 }
+
+/** One tool the escalation agent chose to invoke, and what came back. */
+export interface EscalationToolCall {
+  tool: string;
+  /** Why the agent decided this call was warranted. */
+  reason: string;
+  result: Record<string, unknown>;
+  error?: string | null;
+}
+
+/** Verdict on whether a measurement can be trusted, from POST /findings/{id}/escalate. */
+export interface EscalationResponse {
+  finding_id: string;
+  decision: 'ACCEPT' | 'RE_CHECK' | 'FLAG_FOR_REVIEW';
+  badge_color: 'green' | 'amber' | 'red';
+  /** Rule-based reasoning. Always present — it does not depend on the LLM. */
+  rationale: string;
+  /** Plain-language rewrite. Null when the model was unavailable. */
+  justification?: string | null;
+  justification_error?: string | null;
+  used_llm: boolean;
+  signals: {
+    mode: string;
+    hc_mm: number | null;
+    reliability: number | null;
+    hc_std_mm: number | null;
+    hc_range_mm: number | null;
+    measurable_frames: number;
+    has_consistency_signal: boolean;
+  };
+  /** Empty when the agent decided without using a tool. */
+  tool_calls: EscalationToolCall[];
+  thresholds: Record<string, number>;
+  disclaimer: string;
+}

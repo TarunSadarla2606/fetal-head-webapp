@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { Study, SavedReport, ModelVariant, InferResponse } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import EscalationBadge from './EscalationBadge';
 import {
   AlertTriangle,
   Brain,
@@ -663,6 +664,14 @@ export default function AIFindingsPanel({ study, model, onSaveReport }: Props) {
               )}
 
               <ReliabilityBar value={f.reliability} />
+
+              {/* The agent's verdict on whether that reliability number should
+                  be trusted, sitting directly under the number itself. */}
+              {/* Same gate the XAI and Ask tabs use: a real, server-held
+                  finding. Synthetic demo studies have no finding to escalate. */}
+              {!study.isSynthetic && f.finding_id && (
+                <EscalationBadge findingId={f.finding_id} />
+              )}
 
               {f.mode === 'cine_clip' && (f.cine_overlay_gif || f.cine_loop_gif) && (
                 <p
