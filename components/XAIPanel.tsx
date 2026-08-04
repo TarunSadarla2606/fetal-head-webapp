@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import XaiExplainPanel from './XaiExplainPanel';
 import { Loader2, AlertTriangle, Brain, Activity, ShieldAlert } from 'lucide-react';
 import { gradcamUrl, uncertaintyUrl, getOodReport } from '@/lib/api';
 import type { OodReport } from '@/lib/types';
@@ -69,7 +70,11 @@ function OodSection({ findingId }: { findingId: string }) {
     setReport(null);
     getOodReport(findingId).then(r => {
       if (cancelled) return;
-      if (r) { setReport(r); setStatus('ok'); }
+      // A response missing `reasons`/`stats` used to throw on `.length` during
+      // render, and an error thrown here unmounts the whole XAI tab — taking
+      // GradCAM and Uncertainty down with a section that is merely
+      // supplementary. Normalise the shape instead of trusting it.
+      if (r && Array.isArray(r.reasons) && r.stats) { setReport(r); setStatus('ok'); }
       else { setStatus('error'); }
     });
     return () => { cancelled = true; };
@@ -163,20 +168,27 @@ function OodSection({ findingId }: { findingId: string }) {
 
 export default function XAIPanel({ findingId }: Props) {
   return (
-    <div data-testid="xai-panel" className="flex-1 overflow-auto p-3 grid grid-cols-1 md:grid-cols-3 gap-3 min-h-0 bg-[#0b0f1a]">
-      <ImageSection
-        title="GradCAM++"
-        description="Regions that drove the segmentation"
-        src={gradcamUrl(findingId)}
-        icon={<Brain className="w-4 h-4 text-[#0D7680]" />}
-      />
-      <ImageSection
-        title="Uncertainty"
-        description="Pixel-wise prediction variance (MC sampling)"
-        src={uncertaintyUrl(findingId)}
-        icon={<Activity className="w-4 h-4 text-amber-400" />}
-      />
-      <OodSection findingId={findingId} />
+    <div data-testid="xai-panel" className="flex-1 overflow-auto p-3 space-y-3 min-h-0 bg-[#0b0f1a]">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <ImageSection
+          title="GradCAM++"
+          description="Regions that drove the segmentation"
+          src={gradcamUrl(findingId)}
+          icon={<Brain className="w-4 h-4 text-[#0D7680]" />}
+        />
+        <ImageSection
+          title="Uncertainty"
+          description="Pixel-wise prediction variance (MC sampling)"
+          src={uncertaintyUrl(findingId)}
+          icon={<Activity className="w-4 h-4 text-amber-400" />}
+        />
+        <OodSection findingId={findingId} />
+      </div>
+
+      {/* Directly under the heatmaps: the map answers "where", this answers
+          "so what". Placing it elsewhere would separate the question from the
+          picture that prompts it. */}
+      <XaiExplainPanel findingId={findingId} />
     </div>
   );
 }

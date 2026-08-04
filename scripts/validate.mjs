@@ -231,6 +231,34 @@ check('AIFindingsPanel gates the badge on a real server-held finding', () => {
   if (!src.includes('!study.isSynthetic && f.finding_id'))
     throw new Error('badge not gated — synthetic demo studies have no finding to escalate');
 });
+check('components/XaiExplainPanel.tsx exists', () => {
+  if (!existsSync('components/XaiExplainPanel.tsx')) throw new Error('file missing');
+});
+check('XaiExplainPanel shows the measurements, not just the prose', () => {
+  const src = readFileSync('components/XaiExplainPanel.tsx', 'utf8');
+  if (!src.includes('xai-attribution-summary'))
+    throw new Error('no attribution summary — an explanation with no visible numbers is narration');
+  if (!src.includes('xai-skull-distribution'))
+    throw new Error('skull distribution missing — this is what answers "artifact or not"');
+});
+check('XaiExplainPanel omits the skull breakdown when no mask was available', () => {
+  const src = readFileSync('components/XaiExplainPanel.tsx', 'utf8');
+  if (!src.includes('summary.mask_available'))
+    throw new Error('mask_available never checked — percentages would be shown as 0 not absent');
+});
+check('lib/api.ts exports askAboutXai', () => {
+  if (!readFileSync('lib/api.ts', 'utf8').includes('export async function askAboutXai'))
+    throw new Error('askAboutXai not exported — the XAI Q&A cannot reach the API');
+});
+check('XAIPanel renders the explain panel under the heatmaps', () => {
+  const src = readFileSync('components/XAIPanel.tsx', 'utf8');
+  if (!src.includes('XaiExplainPanel')) throw new Error('XaiExplainPanel never rendered');
+});
+check('OodSection validates the response shape before rendering it', () => {
+  const src = readFileSync('components/XAIPanel.tsx', 'utf8');
+  if (!src.includes('Array.isArray(r.reasons)'))
+    throw new Error('unvalidated OOD response — a malformed one blanks the whole XAI tab');
+});
 check('app/globals.css has teal brand colour', () => {
   if (!readFileSync('app/globals.css', 'utf8').includes('#0D7680'))
     throw new Error('brand colour missing');

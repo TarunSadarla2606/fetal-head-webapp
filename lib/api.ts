@@ -9,6 +9,7 @@ import type {
   ModelVariant,
   OodReport,
   SignReportPayload,
+  XaiAskResponse,
 } from './types';
 
 export const API_BASE = 'https://tarunsadarla2606-fetal-head-clinical-ai-api.hf.space';
@@ -279,4 +280,23 @@ export async function escalateFinding(
     headers: { 'Content-Type': 'application/json', ...authHeaders(apiKey) },
   });
   return jsonOrThrow<EscalationResponse>(res, 'Failed to run the reliability check');
+}
+
+/**
+ * Ask a question about a finding's saliency map.
+ *
+ * The backend recomputes the attribution map, so this costs a forward pass.
+ */
+export async function askAboutXai(
+  findingId: string,
+  question: string,
+  method: 'gradcam' | 'uncertainty' = 'gradcam',
+  apiKey?: string,
+): Promise<XaiAskResponse> {
+  const res = await fetch(`${API_BASE}/findings/${encodeURIComponent(findingId)}/xai/ask`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(apiKey) },
+    body: JSON.stringify({ question, method }),
+  });
+  return jsonOrThrow<XaiAskResponse>(res, 'Failed to explain the attribution map');
 }
