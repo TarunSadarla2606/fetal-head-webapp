@@ -81,6 +81,36 @@ export const DEFAULT_ESCALATION_RESPONSE = {
   disclaimer: 'For demonstration purposes only — not cleared for clinical diagnosis.',
 };
 
+export const DEFAULT_XAI_ASK_RESPONSE = {
+  finding_id: 'fnd_e2e_test',
+  question: 'Why did the model focus where it did?',
+  method: 'gradcam',
+  answer:
+    'The attribution is concentrated, with 53.7% of it falling within 6 pixels of the ' +
+    'predicted skull outline. That is consistent with the model keying on the boundary ' +
+    'it is being asked to trace rather than on background texture.',
+  summary: {
+    method: 'GradCAM++',
+    concentration: 0.67,
+    concentration_label: 'concentrated',
+    focused_area_pct: 12.2,
+    peak_region: 'upper-centre',
+    peak_xy_pct: [50.0, 19.0],
+    top_regions: [{ region: 'upper-centre', share: 0.22, mean_intensity: 0.31 }],
+    on_boundary_pct: 53.7,
+    inside_head_pct: 19.0,
+    outside_head_pct: 27.3,
+    mask_available: true,
+  },
+  grounded: true,
+  used_llm: true,
+  llm_error: null,
+  disclaimer:
+    "Saliency shows where the model's output was most sensitive, which is a correlation " +
+    'with its own prediction — not proof that the highlighted tissue caused the ' +
+    'measurement, and not a clinical finding.',
+};
+
 export interface MockOptions {
   // /infer payload for the happy path; OOD path overrides this with a
   // poor-quality / ood_flag=true response.
@@ -93,6 +123,10 @@ export interface MockOptions {
   escalationResponse?: Record<string, unknown>;
   // Force the escalation endpoint to fail, to exercise the error path.
   escalationStatus?: number;
+  // Explanation for POST /findings/{id}/xai/ask.
+  xaiAskResponse?: Record<string, unknown>;
+  // Force the XAI Q&A endpoint to fail, to exercise the error path.
+  xaiAskStatus?: number;
 }
 
 const baseInfer = {
@@ -173,6 +207,7 @@ export async function installApiMocks(page: Page, opts: MockOptions = {}): Promi
   const inferResponse = opts.inferResponse ?? baseInfer;
   const askResponse = opts.askResponse ?? DEFAULT_ASK_RESPONSE;
   const escalationResponse = opts.escalationResponse ?? DEFAULT_ESCALATION_RESPONSE;
+  const xaiAskResponse = opts.xaiAskResponse ?? DEFAULT_XAI_ASK_RESPONSE;
   let createdReport: typeof baseReport | null = null;
 
   await page.route(`https://${API_HOST}/**`, async (route: Route) => {
@@ -243,6 +278,48 @@ export async function installApiMocks(page: Page, opts: MockOptions = {}): Promi
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify(askResponse),
+      });
+    }
+
+    // OOD reasoning (XAI panel's third column)
+    if (/^\/findings\/[^/]+\/ood$/.test(path)) {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ood_flag: false,
+          score: 0.12,
+          reasons: [],
+          stats: { mean_intensity: 0.41, texture_score: 0.63 },
+        }),
+      });
+    }
+
+    // GradCAM / uncertainty overlays — 1x1 PNG so <img> resolves
+    if (/^\/findings\/[^/]+\/(gradcam|uncertainty)$/.test(path)) {
+      return route.fulfill({
+        status: 200,
+        contentType: 'image/png',
+        body: Buffer.from(
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+          'base64',
+        ),
+      });
+    }
+
+    // Interactive XAI explanation
+    if (/^\/findings\/[^/]+\/xai\/ask$/.test(path) && method === 'POST') {
+      if (opts.xaiAskStatus && opts.xaiAskStatus >= 400) {
+        return route.fulfill({
+          status: opts.xaiAskStatus,
+          contentType: 'application/json',
+          body: JSON.stringify({ detail: 'Finding not found or expired' }),
+        });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(xaiAskResponse),
       });
     }
 

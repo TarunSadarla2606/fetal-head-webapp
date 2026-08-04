@@ -319,3 +319,33 @@ export interface EscalationResponse {
   thresholds: Record<string, number>;
   disclaimer: string;
 }
+
+/** Measured description of a saliency map, from POST /findings/{id}/xai/ask. */
+export interface AttributionSummary {
+  method: string;
+  concentration: number;
+  concentration_label: string;
+  focused_area_pct: number;
+  peak_region: string;
+  peak_xy_pct: [number, number];
+  top_regions: { region: string; share: number; mean_intensity: number }[];
+  /** Null when no segmentation mask was available to relate attribution to. */
+  on_boundary_pct: number | null;
+  inside_head_pct: number | null;
+  outside_head_pct: number | null;
+  mask_available: boolean;
+}
+
+export interface XaiAskResponse {
+  finding_id: string;
+  question: string;
+  method: string;
+  answer: string;
+  /** The measurements the answer was grounded in — returned so it can be checked. */
+  summary: Partial<AttributionSummary>;
+  /** False when no attribution could be computed; the model is not called. */
+  grounded: boolean;
+  used_llm: boolean;
+  llm_error?: string | null;
+  disclaimer: string;
+}

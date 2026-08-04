@@ -148,6 +148,35 @@ Gated on `!study.isSynthetic && finding_id`, the same gate XAI and Ask use.
 Covered by `tests/e2e/escalation.spec.ts` (6 cases, including the flagged,
 tool-use, LLM-unavailable and request-failure paths).
 
+### Interactive explainability
+
+The XAI tab's heatmaps sit above an **"Ask about this attribution"** panel
+(`components/XaiExplainPanel.tsx`). A heatmap says *where* the model looked; the
+next question is always whether that is an anatomical reason or an artifact.
+
+Answers come from `POST /findings/{id}/xai/ask`, grounded in the **measured**
+attribution rather than the picture. The panel shows those measurements next to
+the prose:
+
+| | |
+|---|---|
+| **Focus** | Concentrated / moderately focused / diffuse, plus the area above 50% of peak. |
+| **Peak region** | Where the strongest attribution sits, on a 3×3 grid. |
+| **Where the attribution falls** | A stacked bar: on the predicted skull boundary / inside the head / outside it. This is the number that answers "artifact or not", so it is the one given the most visual weight. |
+
+When no segmentation mask was available the skull breakdown is **omitted**, not
+shown as zeros — absent is not the same as none.
+
+Failures degrade rather than blank: an uncomputable map shows a declined banner
+and no summary, a failed model call shows the reason and keeps the measurements.
+
+Covered by `tests/e2e/xai-explain.spec.ts` (9 cases).
+
+> The XAI tab previously had no E2E coverage, which hid a crash: a `/ood`
+> response missing `reasons` threw on `.length` during render, and because that
+> unmounts the subtree it took GradCAM and Uncertainty down with it. `OodSection`
+> now validates the shape before rendering.
+
 ## Layout
 
 ```
